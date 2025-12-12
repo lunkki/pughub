@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - STEAM_REALM=${STEAM_REALM}
+      - STEAM_RETURN_URL=${STEAM_RETURN_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - STEAM_API_KEY=${STEAM_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-pughub}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pughub_password}
+      - POSTGRES_DB=${POSTGRES_DB:-pughub}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

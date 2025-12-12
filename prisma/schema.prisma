@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  steamId      String         @unique
+  displayName  String
+  avatarUrl    String?
+  role         Role           @default(PLAYER)
+  scrims       Scrim[]        @relation("ScrimCreator")
+  scrimPlayers ScrimPlayer[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Server {
+  id           String   @id @default(cuid())
+  name         String
+  address      String // ip:port
+  rconPassword String
+  isActive     Boolean  @default(true)
+  scrims       Scrim[]
+}
+
+model Scrim {
+  id             String        @id @default(cuid())
+  code           String        @unique
+  creator        User          @relation("ScrimCreator", fields: [creatorId], references: [id])
+  creatorId      String
+  server         Server        @relation(fields: [serverId], references: [id])
+  serverId       String
+  status         ScrimStatus   @default(LOBBY)
+  teamMode       TeamMode
+  maxPlayers     Int           @default(10)
+  mapPool        String?
+  players        ScrimPlayer[]
+  matchzyMatchId String?
+  createdAt      DateTime      @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+
+  vetoOption     VetoOption    @default(ACTIVE_DUTY)
+  selectedMap    String?
+  updatedAt      DateTime      @updatedAt   
+  vetoMode   VetoMode @default(CAPTAINS)
+  vetoState    String?       
+
+
+}
+
+model ScrimPlayer {
+  id         String   @id @default(cuid())
+  scrim      Scrim    @relation(fields: [scrimId], references: [id])
+  scrimId    String
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  steamId    String
+
+  // ⭐ FIXED: Team always required
+  team       Team     @default(WAITING_ROOM)
+
+  isCaptain  Boolean  @default(false)
+  joinedAt   DateTime @default(now())
+
+  @@unique([scrimId, userId])
+}
+
+enum VetoOption {
+  ACTIVE_DUTY
+  ALL_MAPS
+  RANDOM
+  PRESELECT
+}
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+enum ScrimStatus {
+  LOBBY
+  STARTING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum TeamMode {
+  SHUFFLE
+  CAPTAINS
+}
+
+// ⭐ Team is ALWAYS defined
+enum Team {
+  TEAM1
+  TEAM2
+  WAITING_ROOM
+}
+
+
+enum VetoMode {
+  CAPTAINS
+  PLAYERS
+}

@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* --- GLOBAL DARK THEME VARIABLES --- */
+:root {
+  --background: #0d0d10; /* deep pughub-like background */
+  --foreground: #e5e7eb; /* slate-200 */
+  --panel-bg: #1a1b1f;   /* dark panel background */
+  --panel-border: #2d2f36;
+  --accent: #38bdf8;     /* sky-400 */
+}
+
+/* --- TAILWIND THEME HOOKUP --- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel-bg);
+  --color-panel-border: var(--panel-border);
+  --color-accent: var(--accent);
+}
+
+/* --- FORCE DARK MODE ALWAYS --- */
+html, body {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  color-scheme: dark;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* --- RESET MISC --- */
+* {
+  color: inherit;
+  box-sizing: border-box;
+}
+
+/* --- OPTIONAL: smoother fonts --- */
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
