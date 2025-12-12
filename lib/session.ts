@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 const SECRET = new TextEncoder().encode(process.env.SESSION_SECRET!);
 
-export async function createSession(userId: number) {
+export async function createSession(userId: string) {
   return await new SignJWT({ userId })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
@@ -12,7 +12,7 @@ export async function createSession(userId: number) {
 export async function verifySession(token: string) {
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return payload.userId as number;
+    return payload.userId as string;
   } catch {
     return null;
   }

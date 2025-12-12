@@ -44,8 +44,8 @@ export async function POST(
 
   const myTeam = player.team as TeamSide;
 
-  // Enforce veto mode: CAPTAIN vs PLAYERS
-  if (scrim.vetoMode === "CAPTAIN" && !player.isCaptain) {
+  // Enforce veto mode: CAPTAINS vs PLAYERS
+  if (scrim.vetoMode === "CAPTAINS" && !player.isCaptain) {
     return NextResponse.json(
       { error: "Only captains can veto maps" },
       { status: 403 }

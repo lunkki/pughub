@@ -11,7 +11,7 @@ type Props = {
   mapPool: string[];
   state: VetoState | null;
   myTeam?: TeamSide | null;
-  vetoMode?: "CAPTAIN" | "PLAYERS";
+  vetoMode?: "CAPTAINS" | "PLAYERS";
 };
 
 export function MapVetoClient({
@@ -19,7 +19,7 @@ export function MapVetoClient({
   mapPool,
   state,
   myTeam = null,
-  vetoMode = "CAPTAIN",
+  vetoMode = "CAPTAINS",
 }: Props) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -98,7 +98,7 @@ export function MapVetoClient({
           <div className="text-xs text-slate-300">
             {isMyTurn ? (
               <>
-                Your team is banning{vetoMode === "CAPTAIN" && " (captain)"}
+                Your team is banning{vetoMode === "CAPTAINS" && " (captain)"}
                 {timeLeft !== null && (
                   <> · <span className="font-mono">{timeLeft}s</span> left</>
                 )}

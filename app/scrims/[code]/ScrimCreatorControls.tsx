@@ -36,7 +36,7 @@ export function ScrimCreatorControls({ scrim }: ScrimCreatorControlsProps) {
           onChange={(e) => changeMode(e.target.value)}
           disabled={locked}
         >
-          <option value="CAPTAIN">Captain Veto</option>
+          <option value="CAPTAINS">Captain Veto</option>
           <option value="PLAYERS">Players Vote</option>
         </select>
       </div>
