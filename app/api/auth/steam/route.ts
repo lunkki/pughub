@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       name: "session",
       value: token,
       httpOnly: true,
-      secure: false, // set to true in production
+      secure: true,
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
