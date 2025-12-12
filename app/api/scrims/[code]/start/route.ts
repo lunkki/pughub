@@ -66,6 +66,27 @@ export async function POST(
 
     return NextResponse.json({ ok: true, status: "IN_PROGRESS", finalMap });
   }
+  // If two maps -> skip bans, lock one in (first)
+  if (pool.length === 2) {
+    const finalMap = pool[0];
+
+    await prisma.scrim.update({
+      where: { id: scrim.id },
+      data: {
+        status: "IN_PROGRESS",
+        selectedMap: finalMap,
+        vetoState: JSON.stringify({
+          phase: "DONE",
+          pool,
+          banned: [],
+          turn: null,
+          finalMap,
+        }),
+      },
+    });
+
+    return NextResponse.json({ ok: true, status: "IN_PROGRESS", finalMap });
+  }
 
   // Normal case: start veto
   const deadline = new Date(Date.now() + TURN_SECONDS * 1000).toISOString();
