@@ -5,12 +5,27 @@ import { createSession } from "@/lib/session";
 
 const STEAM_OPENID_URL = "https://steamcommunity.com/openid/login";
 
+function normalizeUrl(raw: string | undefined, fallback: string) {
+  if (!raw || raw.trim() === "") return fallback;
+  const trimmed = raw.trim();
+  return trimmed.startsWith("http") ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
+}
+
 function buildQuery(params: Record<string, string>) {
   return new URLSearchParams(params).toString();
 }
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
+
+  const realm = normalizeUrl(
+    process.env.STEAM_REALM,
+    `${url.protocol}//${url.host}`
+  );
+  const returnUrlBase = normalizeUrl(
+    process.env.STEAM_RETURN_URL,
+    `${realm}/api/auth/steam`
+  );
 
   const redirectBack =
     url.searchParams.get("redirect") || "/"; // default home
@@ -40,7 +55,7 @@ export async function GET(req: NextRequest) {
     // Create session cookie
     const token = await createSession(user.id);
 
-    const redirectUrl = `${process.env.STEAM_REALM}${redirectBack}`;
+    const redirectUrl = `${realm}${redirectBack}`;
 
     const res = NextResponse.redirect(redirectUrl);
 
@@ -48,7 +63,7 @@ export async function GET(req: NextRequest) {
       name: "session",
       value: token,
       httpOnly: true,
-      secure: true,
+      secure: realm.startsWith("https://"),
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
@@ -58,9 +73,7 @@ export async function GET(req: NextRequest) {
 
   // --- Step 1: Start Steam login ---
   // Add redirect parameter to Steam return URL
-  const returnTo = `${process.env.STEAM_RETURN_URL}?redirect=${encodeURIComponent(
-    redirectBack
-  )}`;
+  const returnTo = `${returnUrlBase}?redirect=${encodeURIComponent(redirectBack)}`;
 
   const steamRedirect =
     `${STEAM_OPENID_URL}?` +
@@ -68,7 +81,7 @@ export async function GET(req: NextRequest) {
       "openid.ns": "http://specs.openid.net/auth/2.0",
       "openid.mode": "checkid_setup",
       "openid.return_to": returnTo,
-      "openid.realm": process.env.STEAM_REALM!,
+      "openid.realm": realm,
       "openid.identity":
         "http://specs.openid.net/auth/2.0/identifier_select",
       "openid.claimed_id":
