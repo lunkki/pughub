@@ -137,22 +137,29 @@ export async function POST(
         ...(finalMap ? { selectedMap: finalMap } : {}),
       },
     });
-
-    if (finalMap) {
-      await launchScrimServer({
-        address: scrim.server.address,
-        rconPassword: scrim.server.rconPassword,
-        map: finalMap,
-        connectPassword: getConnectPassword(),
-      });
-    }
   } catch (err) {
-    console.error("Failed to update veto / launch server", err);
+    console.error("Failed to persist veto state", err);
     return NextResponse.json(
       { error: "Failed to update veto state" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ ok: true, state: updatedState });
+  let rconError: string | null = null;
+  if (finalMap) {
+    try {
+      await launchScrimServer({
+        address: scrim.server.address,
+        rconPassword: scrim.server.rconPassword,
+        map: finalMap,
+        connectPassword: getConnectPassword(),
+      });
+    } catch (err) {
+      console.error("Failed to launch server via RCON", err);
+      rconError = "RCON launch failed";
+      // Do not fail the veto state update if RCON fails; lobby will still have the final map.
+    }
+  }
+
+  return NextResponse.json({ ok: true, state: updatedState, rconError });
 }
