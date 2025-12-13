@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   app:
     build:
@@ -12,22 +10,34 @@ services:
       - STEAM_RETURN_URL=${STEAM_RETURN_URL}
       - SESSION_SECRET=${SESSION_SECRET}
       - STEAM_API_KEY=${STEAM_API_KEY}
+      - DEFAULT_SERVER_NAME=${DEFAULT_SERVER_NAME:-Local Test Server}
+      - DEFAULT_SERVER_ADDRESS=${DEFAULT_SERVER_ADDRESS:-127.0.0.1:27015}
+      - DEFAULT_SERVER_RCON_PASSWORD=${DEFAULT_SERVER_RCON_PASSWORD:-change-me-rcon}
+      - DEFAULT_SERVER_PASSWORD=${DEFAULT_SERVER_PASSWORD:-secret-password-here}
+      - SCRIM_START_STEAM_IDS=${SCRIM_START_STEAM_IDS:-}
+    command: ["sh", "-c", "npx prisma migrate deploy && npm run start"]
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-pughub}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pughub_password}
-      - POSTGRES_DB=${POSTGRES_DB:-pughub}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:

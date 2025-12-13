@@ -9,6 +9,8 @@ type ScrimControlsProps = {
   vetoState: VetoState;
   mapPoolLength: number;
   selectedMap: string | null;
+  serverAddress?: string;
+  connectPassword?: string;
 };
 
 export function ScrimControls({
@@ -17,6 +19,8 @@ export function ScrimControls({
   vetoState,
   mapPoolLength,
   selectedMap,
+  serverAddress,
+  connectPassword,
 }: ScrimControlsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,10 @@ export function ScrimControls({
 
   let primaryLabel = "Start match";
   let primaryDisabled = true;
+  const finalConnectString =
+    serverAddress && connectPassword
+      ? `connect ${serverAddress}; password ${connectPassword}`
+      : null;
 
   if (vetoState.phase === "NOT_STARTED") {
     if (mapPoolLength < 1) {
@@ -94,6 +102,11 @@ export function ScrimControls({
           <p className="text-xs text-slate-500 mt-1">
             Selected maps: {mapPoolLength}
           </p>
+          {selectedMap && finalConnectString && (
+            <p className="text-xs text-emerald-400 mt-1">
+              Connect: <span className="font-mono">{finalConnectString}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col items-start gap-2">

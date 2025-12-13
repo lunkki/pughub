@@ -17,14 +17,19 @@ export async function GET(
 
         controller.enqueue(encoder.encode("data: connected\n\n"));
 
-        const interval = setInterval(async () => {
+        const pollInterval = setInterval(async () => {
           const scrim = await prisma.scrim.findUnique({
             where: { code },
             select: { updatedAt: true },
           });
 
           if (!scrim) {
-            controller.enqueue(encoder.encode("event: error\ndata: scrim_not_found\n\n"));
+            controller.enqueue(
+              encoder.encode("event: error\ndata: scrim_not_found\n\n")
+            );
+            clearInterval(pollInterval);
+            clearInterval(heartbeatInterval);
+            controller.close();
             return;
           }
 
@@ -36,7 +41,16 @@ export async function GET(
           }
         }, 1000);
 
-        req.signal.addEventListener("abort", () => clearInterval(interval));
+        // Periodic heartbeat to keep the connection alive through proxies
+        const heartbeatInterval = setInterval(() => {
+          controller.enqueue(encoder.encode("event: ping\ndata: keepalive\n\n"));
+        }, 15000);
+
+        req.signal.addEventListener("abort", () => {
+          clearInterval(pollInterval);
+          clearInterval(heartbeatInterval);
+          controller.close();
+        });
       },
     }),
     {

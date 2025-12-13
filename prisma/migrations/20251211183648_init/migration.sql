@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "VetoOption" AS ENUM ('ACTIVE_DUTY', 'ALL_MAPS', 'RANDOM', 'PRESELECT');
+
+-- CreateEnum
 CREATE TYPE "Role" AS ENUM ('PLAYER', 'ADMIN');
 
 -- CreateEnum
@@ -8,7 +11,10 @@ CREATE TYPE "ScrimStatus" AS ENUM ('LOBBY', 'STARTING', 'IN_PROGRESS', 'FINISHED
 CREATE TYPE "TeamMode" AS ENUM ('SHUFFLE', 'CAPTAINS');
 
 -- CreateEnum
-CREATE TYPE "Team" AS ENUM ('TEAM1', 'TEAM2', 'SPECTATOR');
+CREATE TYPE "Team" AS ENUM ('TEAM1', 'TEAM2', 'WAITING_ROOM');
+
+-- CreateEnum
+CREATE TYPE "VetoMode" AS ENUM ('CAPTAINS', 'PLAYERS');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -48,6 +54,11 @@ CREATE TABLE "Scrim" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "startedAt" TIMESTAMP(3),
     "finishedAt" TIMESTAMP(3),
+    "vetoOption" "VetoOption" NOT NULL DEFAULT 'ACTIVE_DUTY',
+    "selectedMap" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "vetoMode" "VetoMode" NOT NULL DEFAULT 'CAPTAINS',
+    "vetoState" TEXT,
 
     CONSTRAINT "Scrim_pkey" PRIMARY KEY ("id")
 );
@@ -58,7 +69,7 @@ CREATE TABLE "ScrimPlayer" (
     "scrimId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "steamId" TEXT NOT NULL,
-    "team" "Team",
+    "team" "Team" NOT NULL DEFAULT 'WAITING_ROOM',
     "isCaptain" BOOLEAN NOT NULL DEFAULT false,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

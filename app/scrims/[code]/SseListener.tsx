@@ -1,18 +1,54 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+
+const RECONNECT_BASE_MS = 500;
+const RECONNECT_MAX_MS = 8000;
 
 export function SseListener({ code }: { code: string }) {
+  const router = useRouter();
+  const retries = useRef(0);
+
   useEffect(() => {
-    const es = new EventSource(`/api/scrims/${code}/events`);
+    let es: EventSource | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    es.addEventListener("update", () => {
-      // Refresh UI without full page reload
-      window.location.reload();
-    });
+    const connect = () => {
+      es?.close();
+      es = new EventSource(`/api/scrims/${code}/events`);
 
-    return () => es.close();
-  }, [code]);
+      const resetBackoff = () => {
+        retries.current = 0;
+      };
+
+      es.addEventListener("update", () => {
+        resetBackoff();
+        router.refresh();
+      });
+
+      es.addEventListener("ping", resetBackoff);
+
+      es.onerror = () => {
+        es?.close();
+        const delay = Math.min(
+          RECONNECT_BASE_MS * 2 ** retries.current,
+          RECONNECT_MAX_MS
+        );
+        retries.current += 1;
+        retryTimeout = setTimeout(connect, delay);
+      };
+    };
+
+    connect();
+
+    return () => {
+      es?.close();
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [code, router]);
 
   return null;
 }

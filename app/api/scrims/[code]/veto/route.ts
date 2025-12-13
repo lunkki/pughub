@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getNextTeamABBA, type TeamSide, type VetoState, type VetoPhase } from "@/lib/veto";
+import { getConnectPassword, launchScrimServer } from "@/lib/serverControl";
 
 const TURN_SECONDS = 40;
 
@@ -20,11 +21,17 @@ export async function POST(
 
   const scrim = await prisma.scrim.findUnique({
     where: { code },
-    include: { players: true },
+    include: { players: true, server: true },
   });
 
   if (!scrim) {
     return NextResponse.json({ error: "Scrim not found" }, { status: 404 });
+  }
+  if (!scrim.server) {
+    return NextResponse.json(
+      { error: "No server configured for this scrim" },
+      { status: 500 }
+    );
   }
 
   if (scrim.status !== "STARTING") {
@@ -93,14 +100,19 @@ export async function POST(
   let finalMap: string | undefined;
   let statusUpdate: "STARTING" | "IN_PROGRESS" = "STARTING";
 
-  // If only one map left -> veto finished, lock final map
+  // Finish only when one map remains (let both teams ban down to a single map)
   if (newPool.length <= 1) {
     phase = "DONE";
     newTurn = null;
     finalMap = newPool[0] ?? map;
     statusUpdate = "IN_PROGRESS";
   } else {
-    newTurn = getNextTeamABBA(newBanned.length);
+    // If exactly two maps remain, give the *other* team the final ban so they choose between the last two.
+    if (newPool.length === 2) {
+      newTurn = myTeam === "TEAM1" ? "TEAM2" : "TEAM1";
+    } else {
+      newTurn = getNextTeamABBA(newBanned.length);
+    }
   }
 
   const deadline = newTurn
@@ -116,14 +128,31 @@ export async function POST(
     ...(finalMap ? { finalMap } : {}),
   };
 
-  await prisma.scrim.update({
-    where: { id: scrim.id },
-    data: {
-      status: statusUpdate,
-      vetoState: JSON.stringify(updatedState),
-      ...(finalMap ? { selectedMap: finalMap } : {}),
-    },
-  });
+  try {
+    await prisma.scrim.update({
+      where: { id: scrim.id },
+      data: {
+        status: statusUpdate,
+        vetoState: JSON.stringify(updatedState),
+        ...(finalMap ? { selectedMap: finalMap } : {}),
+      },
+    });
+
+    if (finalMap) {
+      await launchScrimServer({
+        address: scrim.server.address,
+        rconPassword: scrim.server.rconPassword,
+        map: finalMap,
+        connectPassword: getConnectPassword(),
+      });
+    }
+  } catch (err) {
+    console.error("Failed to update veto / launch server", err);
+    return NextResponse.json(
+      { error: "Failed to update veto state" },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ ok: true, state: updatedState });
 }

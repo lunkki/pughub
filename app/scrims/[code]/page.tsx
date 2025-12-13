@@ -10,6 +10,7 @@ import { ScrimCreatorControls } from "./ScrimCreatorControls";
 import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
 import { parseVetoState, TeamSide } from "@/lib/veto";
+import { getConnectPassword } from "@/lib/serverControl";
 
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export default async function ScrimLobbyPage({
     where: { code },
     include: {
       players: { include: { user: true } },
+      server: true,
     },
   });
 
@@ -78,12 +80,16 @@ export default async function ScrimLobbyPage({
     where: { code },
     include: {
       players: { include: { user: true } },
+      server: true,
     },
   });
 
   if (!updatedScrim) redirect("/");
 
   const canChangeTeams = updatedScrim.status === "LOBBY";
+
+  const serverAddress = updatedScrim.server?.address ?? null;
+  const connectPassword = getConnectPassword();
 
 
   const playerForUser = updatedScrim.players.find(
@@ -130,6 +136,8 @@ export default async function ScrimLobbyPage({
           vetoState={vetoState}
           mapPoolLength={mapPool.length}
           selectedMap={updatedScrim.selectedMap}
+          serverAddress={serverAddress || undefined}
+          connectPassword={connectPassword}
         />
       </div>
 

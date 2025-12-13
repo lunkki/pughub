@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getNextTeamABBA } from "@/lib/veto";
+import { getConnectPassword, launchScrimServer } from "@/lib/serverControl";
+import { isScrimStarter } from "@/lib/permissions";
 
 const TURN_SECONDS = 40;
 
@@ -19,14 +21,28 @@ export async function POST(
 
   const scrim = await prisma.scrim.findUnique({
     where: { code },
+    include: { server: true },
   });
 
   if (!scrim) {
     return NextResponse.json({ error: "Scrim not found" }, { status: 404 });
   }
+  if (!scrim.server) {
+    return NextResponse.json(
+      { error: "No server configured for this scrim" },
+      { status: 500 }
+    );
+  }
 
   if (scrim.creatorId !== user.id) {
     return NextResponse.json({ error: "Only scrim creator can start" }, { status: 403 });
+  }
+
+  if (!isScrimStarter(user.steamId)) {
+    return NextResponse.json(
+      { error: "You are not allowed to start scrims" },
+      { status: 403 }
+    );
   }
 
   if (scrim.status !== "LOBBY") {
@@ -49,43 +65,81 @@ export async function POST(
   if (pool.length === 1) {
     const finalMap = pool[0];
 
-    await prisma.scrim.update({
-      where: { id: scrim.id },
-      data: {
-        status: "IN_PROGRESS",
-        selectedMap: finalMap,
-        vetoState: JSON.stringify({
-          phase: "DONE",
-          pool,
-          banned: [],
-          turn: null,
-          finalMap,
-        }),
-      },
-    });
+    try {
+      await prisma.scrim.update({
+        where: { id: scrim.id },
+        data: {
+          status: "IN_PROGRESS",
+          selectedMap: finalMap,
+          vetoState: JSON.stringify({
+            phase: "DONE",
+            pool,
+            banned: [],
+            turn: null,
+            finalMap,
+          }),
+        },
+      });
 
-    return NextResponse.json({ ok: true, status: "IN_PROGRESS", finalMap });
+      await launchScrimServer({
+        address: scrim.server.address,
+        rconPassword: scrim.server.rconPassword,
+        map: finalMap,
+        connectPassword: getConnectPassword(),
+      });
+    } catch (err) {
+      console.error("Failed to start server via RCON", err);
+      return NextResponse.json(
+        { error: "Failed to start server via RCON" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      status: "IN_PROGRESS",
+      finalMap,
+    });
   }
   // If two maps -> skip bans, lock one in (first)
   if (pool.length === 2) {
     const finalMap = pool[0];
 
-    await prisma.scrim.update({
-      where: { id: scrim.id },
-      data: {
-        status: "IN_PROGRESS",
-        selectedMap: finalMap,
-        vetoState: JSON.stringify({
-          phase: "DONE",
-          pool,
-          banned: [],
-          turn: null,
-          finalMap,
-        }),
-      },
-    });
+    try {
+      await prisma.scrim.update({
+        where: { id: scrim.id },
+        data: {
+          status: "IN_PROGRESS",
+          selectedMap: finalMap,
+          vetoState: JSON.stringify({
+            phase: "DONE",
+            pool,
+            banned: [],
+            turn: null,
+            finalMap,
+          }),
+        },
+      });
 
-    return NextResponse.json({ ok: true, status: "IN_PROGRESS", finalMap });
+      await launchScrimServer({
+        address: scrim.server.address,
+        rconPassword: scrim.server.rconPassword,
+        map: finalMap,
+        connectPassword: getConnectPassword(),
+      });
+    } catch (err) {
+      console.error("Failed to start server via RCON", err);
+      return NextResponse.json(
+        { error: "Failed to start server via RCON" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      status: "IN_PROGRESS",
+      finalMap,
+    });
   }
 
   // Normal case: start veto

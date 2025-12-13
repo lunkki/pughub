@@ -18,19 +18,22 @@ export async function GET(
         let lastUpdated = Date.now();
 
         // Send initial message
-        controller.enqueue(
-          encoder.encode(`data: connected\n\n`)
-        );
+        controller.enqueue(encoder.encode(`data: connected\n\n`));
 
         // Poll DB periodically
-        const interval = setInterval(async () => {
+        const pollInterval = setInterval(async () => {
           const scrim = await prisma.scrim.findUnique({
             where: { code },
             select: { updatedAt: true },
           });
 
           if (!scrim) {
-            controller.enqueue(encoder.encode(`event: error\ndata: scrim_not_found\n\n`));
+            controller.enqueue(
+              encoder.encode(`event: error\ndata: scrim_not_found\n\n`)
+            );
+            clearInterval(pollInterval);
+            clearInterval(heartbeatInterval);
+            controller.close();
             return;
           }
 
@@ -39,15 +42,20 @@ export async function GET(
           if (ts > lastUpdated) {
             lastUpdated = ts;
 
-            controller.enqueue(
-              encoder.encode(`event: update\ndata: updated\n\n`)
-            );
+            controller.enqueue(encoder.encode(`event: update\ndata: updated\n\n`));
           }
         }, 1000); // Check every 1 second
 
+        // Heartbeat to keep the stream alive through proxies
+        const heartbeatInterval = setInterval(() => {
+          controller.enqueue(encoder.encode(`event: ping\ndata: keepalive\n\n`));
+        }, 15000);
+
         // Stop when client disconnects
         req.signal.addEventListener("abort", () => {
-          clearInterval(interval);
+          clearInterval(pollInterval);
+          clearInterval(heartbeatInterval);
+          controller.close();
         });
       },
     }),
