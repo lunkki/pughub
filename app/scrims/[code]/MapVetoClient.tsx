@@ -12,6 +12,11 @@ type Props = {
   state: VetoState | null;
   myTeam?: TeamSide | null;
   vetoMode?: "CAPTAINS" | "PLAYERS";
+  players?: {
+    id: string;
+    team: TeamSide | "WAITING_ROOM";
+    user: { avatarUrl?: string | null; displayName: string };
+  }[];
 };
 
 export function MapVetoClient({
@@ -20,6 +25,7 @@ export function MapVetoClient({
   state,
   myTeam = null,
   vetoMode = "CAPTAINS",
+  players = [],
 }: Props) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -50,6 +56,15 @@ export function MapVetoClient({
     const bannedMaps = state.banned.map((b) => b.map);
     return Array.from(new Set([...state.pool, ...bannedMaps]));
   }, [mapPool, state]);
+
+  const teamPlayers = useMemo(
+    () => players.filter((p) => p.team === myTeam),
+    [players, myTeam]
+  );
+  const voteSelections =
+    state?.pendingVotes && state.pendingVotes.team === myTeam
+      ? state.pendingVotes.selections
+      : {};
 
   async function banMap(map: string) {
     if (!state || !isMyTurn || busy || state.phase !== "IN_PROGRESS") return;
@@ -135,6 +150,12 @@ export function MapVetoClient({
             state?.phase === "IN_PROGRESS" &&
             isMyTurn &&
             !busy;
+          const mapVotes =
+            vetoMode === "PLAYERS"
+              ? teamPlayers.filter(
+                  (p) => voteSelections && voteSelections[p.id] === mapId
+                )
+              : [];
 
           return (
             <div
@@ -187,6 +208,24 @@ export function MapVetoClient({
               {!banInfo && !isFinal && !inPool && vetoStarted && (
                 <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center text-xs font-semibold text-slate-200">
                   REMOVED
+                </div>
+              )}
+              {mapVotes.length > 0 && (
+                <div className="absolute top-2 left-2 flex -space-x-2">
+                  {mapVotes.slice(0, 4).map((p) => (
+                    <img
+                      key={p.id}
+                      src={p.user.avatarUrl ?? ""}
+                      alt={p.user.displayName}
+                      title={`${p.user.displayName} voted`}
+                      className="h-7 w-7 rounded-full border border-slate-800 bg-slate-800 object-cover"
+                    />
+                  ))}
+                  {mapVotes.length > 4 && (
+                    <div className="h-7 w-7 rounded-full bg-slate-900 border border-slate-700 text-[10px] text-slate-200 flex items-center justify-center">
+                      +{mapVotes.length - 4}
+                    </div>
+                  )}
                 </div>
               )}
               {canBan && (

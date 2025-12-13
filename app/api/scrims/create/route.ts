@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
       data: {
         name: process.env.DEFAULT_SERVER_NAME || "Local Test Server",
         address: process.env.DEFAULT_SERVER_ADDRESS || "127.0.0.1:27015",
+        rconAddress:
+          process.env.DEFAULT_SERVER_RCON_ADDRESS ||
+          process.env.DEFAULT_SERVER_ADDRESS ||
+          "127.0.0.1:27015",
         rconPassword:
           process.env.DEFAULT_SERVER_RCON_PASSWORD || "change-me-rcon",
         isActive: true,

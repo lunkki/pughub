@@ -214,7 +214,7 @@ export async function POST(
   if (finalMap) {
     try {
       await launchScrimServer({
-        address: scrim.server.address,
+        address: scrim.server.rconAddress ?? scrim.server.address,
         rconPassword: scrim.server.rconPassword,
         map: finalMap,
         connectPassword: getConnectPassword(),

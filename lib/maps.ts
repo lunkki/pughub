@@ -8,7 +8,7 @@ export type MapInfo = {
 };
 
 // Base URL for images
-const IMG = "https://github.com/kus/cs2-modded-server/blob/assets/images";
+const IMG = "/maps";
 
 
 
@@ -17,105 +17,105 @@ export const MAPS: MapInfo[] = [
   {
     id: "cs_italy",
     name: "Italy",
-    image: `${IMG}/cs_italy.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/cs_italy.jpg`,
     type: "stock",
     command: "changelevel cs_italy",
   },
   {
     id: "cs_office",
     name: "Office",
-    image: `${IMG}/cs_office.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/cs_office.jpg`,
     type: "stock",
     command: "changelevel cs_office",
   },
   {
     id: "de_vertigo",
     name: "Vertigo",
-    image: `${IMG}/de_vertigo.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_vertigo.jpg`,
     type: "stock",
     command: "changelevel de_vertigo",
   },
   {
     id: "de_ancient",
     name: "Ancient",
-    image: `${IMG}/de_ancient.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_ancient.jpg`,
     type: "stock",
     command: "changelevel de_ancient",
   },
   {
     id: "de_ancient_night",
     name: "Ancient Night",
-    image: `${IMG}/de_ancient_night.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_ancient_night.jpg`,
     type: "stock",
     command: "changelevel de_ancient_night",
   },
   {
     id: "de_anubis",
     name: "Anubis",
-    image: `${IMG}/de_anubis.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_anubis.jpg`,
     type: "stock",
     command: "changelevel de_anubis",
   },
   {
     id: "de_dust2",
     name: "Dust 2",
-    image: `${IMG}/de_dust2.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_dust2.jpg`,
     type: "stock",
     command: "changelevel de_dust2",
   },
   {
     id: "de_inferno",
     name: "Inferno",
-    image: `${IMG}/de_inferno.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_inferno.jpg`,
     type: "stock",
     command: "changelevel de_inferno",
   },
   {
     id: "de_mirage",
     name: "Mirage",
-    image: `${IMG}/de_mirage.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_mirage.jpg`,
     type: "stock",
     command: "changelevel de_mirage",
   },
   {
     id: "de_nuke",
     name: "Nuke",
-    image: `${IMG}/de_nuke.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_nuke.jpg`,
     type: "stock",
     command: "changelevel de_nuke",
   },
   {
     id: "de_overpass",
     name: "Overpass",
-    image: `${IMG}/de_overpass.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_overpass.jpg`,
     type: "stock",
     command: "changelevel de_overpass",
   },
   {
     id: "de_train",
     name: "Train",
-    image: `${IMG}/de_train.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_train.jpg`,
     type: "stock",
     command: "changelevel de_train",
   },
   {
     id: "de_jura",
     name: "Jura",
-    image: `${IMG}/de_jura.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_jura.jpg`,
     type: "stock",
     command: "changelevel de_jura",
   },
   {
     id: "de_grail",
     name: "Grail",
-    image: `${IMG}/de_grail.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_grail.jpg`,
     type: "stock",
     command: "changelevel de_grail",
   },
   {
     id: "cs_agency",
     name: "Agency",
-    image: `${IMG}/cs_agency.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/cs_agency.jpg`,
     type: "stock",
     command: "changelevel cs_agency",
   },
@@ -124,7 +124,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_basalt",
     name: "Basalt",
-    image: `${IMG}/de_basalt.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_basalt.jpg`,
     type: "workshop",
     workshopId: "3329258290",
     command: "host_workshop_map 3329258290",
@@ -132,7 +132,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_edin",
     name: "Edin",
-    image: `${IMG}/de_edin.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_edin.jpg`,
     type: "workshop",
     workshopId: "3328169568",
     command: "host_workshop_map 3328169568",
@@ -140,7 +140,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_assembly",
     name: "Assembly",
-    image: `${IMG}/de_assembly.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_assembly.jpg`,
     type: "workshop",
     workshopId: "3071005299",
     command: "host_workshop_map 3071005299",
@@ -148,7 +148,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_cbble",
     name: "Cobblestone",
-    image: `${IMG}/de_cbble.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_cbble.jpg`,
     type: "workshop",
     workshopId: "3329387648",
     command: "host_workshop_map 3329387648",
@@ -156,7 +156,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_cache",
     name: "Cache",
-    image: `${IMG}/de_cache.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_cache.jpg`,
     type: "workshop",
     workshopId: "3437809122",
     command: "host_workshop_map 3437809122",
@@ -164,7 +164,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_pipeline",
     name: "Pipeline",
-    image: `${IMG}/de_pipeline.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_pipeline.jpg`,
     type: "workshop",
     workshopId: "3079872050",
     command: "host_workshop_map 3079872050",
@@ -172,7 +172,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_biome",
     name: "Biome",
-    image: `${IMG}/de_biome.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_biome.jpg`,
     type: "workshop",
     workshopId: "3075706807",
     command: "host_workshop_map 3075706807",
@@ -180,7 +180,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "mp_raid",
     name: "Raid",
-    image: `${IMG}/mp_raid.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/mp_raid.jpg`,
     type: "workshop",
     workshopId: "3070346180",
     command: "host_workshop_map 3070346180",
@@ -188,7 +188,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_mutiny",
     name: "Mutiny",
-    image: `${IMG}/de_mutiny.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_mutiny.jpg`,
     type: "workshop",
     workshopId: "3070766070",
     command: "host_workshop_map 3070766070",
@@ -196,7 +196,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "cs_assault",
     name: "Assault",
-    image: `${IMG}/cs_assault.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/cs_assault.jpg`,
     type: "workshop",
     workshopId: "3070594412",
     command: "host_workshop_map 3070594412",
@@ -204,7 +204,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_ruins_d_prefab",
     name: "Ruins (Prefab)",
-    image: `${IMG}/de_ruins_d_prefab.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_ruins_d_prefab.jpg`,
     type: "workshop",
     workshopId: "3072352643",
     command: "host_workshop_map 3072352643",
@@ -212,7 +212,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "cs_militia",
     name: "Militia",
-    image: `${IMG}/cs_militia.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/cs_militia.jpg`,
     type: "workshop",
     workshopId: "3089953774",
     command: "host_workshop_map 3089953774",
@@ -220,7 +220,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_aztec_hr",
     name: "Aztec HR",
-    image: `${IMG}/de_aztec_hr.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_aztec_hr.jpg`,
     type: "workshop",
     workshopId: "3079692971",
     command: "host_workshop_map 3079692971",
@@ -228,7 +228,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_akiba",
     name: "Akiba",
-    image: `${IMG}/de_akiba.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_akiba.jpg`,
     type: "workshop",
     workshopId: "3108513658",
     command: "host_workshop_map 3108513658",
@@ -236,7 +236,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "cs_insertion2",
     name: "Insertion 2",
-    image: `${IMG}/cs_insertion2.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/cs_insertion2.jpg`,
     type: "workshop",
     workshopId: "3236615060",
     command: "host_workshop_map 3236615060",
@@ -244,7 +244,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_train_ws",
     name: "Train (WS)",
-    image: `${IMG}/de_train.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_train.jpg`,
     type: "workshop",
     workshopId: "3070284539",
     command: "host_workshop_map 3070284539",
@@ -252,7 +252,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_mills",
     name: "Mills",
-    image: `${IMG}/de_mills.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_mills.jpg`,
     type: "workshop",
     workshopId: "3152430710",
     command: "host_workshop_map 3152430710",
@@ -260,7 +260,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_thera",
     name: "Thera",
-    image: `${IMG}/de_thera.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_thera.jpg`,
     type: "workshop",
     workshopId: "3121217565",
     command: "host_workshop_map 3121217565",
@@ -268,7 +268,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_season",
     name: "Season",
-    image: `${IMG}/de_season.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_season.jpg`,
     type: "workshop",
     workshopId: "3073892687",
     command: "host_workshop_map 3073892687",
@@ -276,7 +276,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_ema",
     name: "Ema",
-    image: `${IMG}/de_ema.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_ema.jpg`,
     type: "workshop",
     workshopId: "3386116667",
     command: "host_workshop_map 3386116667",
@@ -284,7 +284,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "twofort_cs2",
     name: "Twofort",
-    image: `${IMG}/twofort_cs2.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/twofort_cs2.jpg`,
     type: "workshop",
     workshopId: "3345551391",
     command: "host_workshop_map 3345551391",
@@ -292,7 +292,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_rats_remake",
     name: "Rats Remake",
-    image: `${IMG}/de_rats_remake.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_rats_remake.jpg`,
     type: "workshop",
     workshopId: "3460962520",
     command: "host_workshop_map 3460962520",
@@ -300,7 +300,7 @@ export const MAPS: MapInfo[] = [
   {
     id: "de_mirage_bricks",
     name: "Mirage Bricks",
-    image: `${IMG}/de_mirage_bricks.jpg?raw=true&sanitize=true`,
+    image: `${IMG}/de_mirage_bricks.jpg`,
     type: "workshop",
     workshopId: "3464733042",
     command: "host_workshop_map 3464733042",

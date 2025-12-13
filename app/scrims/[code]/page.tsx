@@ -252,6 +252,7 @@ export default async function ScrimLobbyPage({
               : null
           }
           vetoMode={updatedScrim.vetoMode}
+          players={updatedScrim.players}
         />
       </div>
     </div>

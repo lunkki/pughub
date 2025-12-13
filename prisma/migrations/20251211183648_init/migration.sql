@@ -34,6 +34,7 @@ CREATE TABLE "Server" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "address" TEXT NOT NULL,
+    "rconAddress" TEXT,
     "rconPassword" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
 

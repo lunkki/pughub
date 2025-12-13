@@ -82,7 +82,7 @@ export async function POST(
       });
 
       await launchScrimServer({
-        address: scrim.server.address,
+        address: scrim.server.rconAddress ?? scrim.server.address,
         rconPassword: scrim.server.rconPassword,
         map: finalMap,
         connectPassword: getConnectPassword(),
@@ -122,7 +122,7 @@ export async function POST(
       });
 
       await launchScrimServer({
-        address: scrim.server.address,
+        address: scrim.server.rconAddress ?? scrim.server.address,
         rconPassword: scrim.server.rconPassword,
         map: finalMap,
         connectPassword: getConnectPassword(),
