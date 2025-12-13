@@ -61,6 +61,7 @@ export async function POST(
 
   const body = await req.json();
   const { action, map } = body as { action: "BAN"; map: string };
+  let banChoice = map;
 
   let state: VetoState | null = scrim.vetoState
     ? JSON.parse(scrim.vetoState)
@@ -91,9 +92,66 @@ export async function POST(
     );
   }
 
+  // --- Player-vote veto mode ---
+  if (scrim.vetoMode === "PLAYERS") {
+    const teamPlayers = scrim.players.filter((p) => p.team === myTeam);
+    const totalVoters = Math.max(teamPlayers.length, 1);
+    const currentTurn = state.banned.length;
+
+    const isSameTurnPending =
+      state.pendingVotes &&
+      state.pendingVotes.turn === currentTurn &&
+      state.pendingVotes.team === myTeam;
+
+    const selections = {
+      ...(isSameTurnPending ? state.pendingVotes?.selections ?? {} : {}),
+      [user.id]: banChoice,
+    };
+
+    const allVoted = Object.keys(selections).length >= totalVoters;
+
+    if (!allVoted) {
+      const pendingState: VetoState = {
+        ...state,
+        pendingVotes: { team: myTeam, turn: currentTurn, selections },
+      };
+
+      await prisma.scrim.update({
+        where: { id: scrim.id },
+        data: {
+          vetoState: JSON.stringify(pendingState),
+        },
+      });
+
+      return NextResponse.json({ ok: true, state: pendingState, pending: true });
+    }
+
+    // All votes in -> pick the map with most votes (ties broken randomly)
+    const counts: Record<string, number> = {};
+    Object.values(selections).forEach((m) => {
+      counts[m] = (counts[m] ?? 0) + 1;
+    });
+    const maxVotes = Math.max(...Object.values(counts));
+    const topMaps = Object.entries(counts)
+      .filter(([_, v]) => v === maxVotes)
+      .map(([m]) => m)
+      .filter((m) => state.pool.includes(m));
+
+    banChoice =
+      topMaps.length === 0
+        ? state.pool[0]
+        : topMaps[Math.floor(Math.random() * topMaps.length)];
+
+    // Clear pending votes for next turn
+    state = {
+      ...state,
+      pendingVotes: undefined,
+    };
+  }
+
   // --- Apply ban ---
-  const newPool = state.pool.filter((m) => m !== map);
-  const newBanned = [...state.banned, { map, by: myTeam }];
+  const newPool = state.pool.filter((m) => m !== banChoice);
+  const newBanned = [...state.banned, { map: banChoice, by: myTeam }];
 
   let newTurn: TeamSide | null = null;
   let phase: VetoPhase = "IN_PROGRESS";
@@ -104,7 +162,7 @@ export async function POST(
   if (newPool.length <= 1) {
     phase = "DONE";
     newTurn = null;
-    finalMap = newPool[0] ?? map;
+    finalMap = newPool[0] ?? banChoice;
     statusUpdate = "IN_PROGRESS";
   } else {
     // If exactly two maps remain, give the *other* team the final ban so they choose between the last two.

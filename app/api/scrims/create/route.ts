@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
         create: {
           userId: user.id,
           steamId: user.steamId,
-          team: "TEAM1",
-          isCaptain: true,
+          team: "WAITING_ROOM",
+          isCaptain: false, // creator starts as a normal player; captain assigned when teams are set
         },
       },
     },

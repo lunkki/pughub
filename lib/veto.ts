@@ -11,6 +11,11 @@ export type VetoState = {
   turn: TeamSide | null;
   deadline?: string;
   finalMap?: string;
+  pendingVotes?: {
+    team: TeamSide;
+    turn: number;
+    selections: Record<string, string>; // userId -> map pick
+  };
 };
 
 const EMPTY_STATE: VetoState = {
@@ -35,6 +40,7 @@ export function parseVetoState(raw: string | null): VetoState {
       turn: parsed.turn ?? null,
       ...(parsed.deadline ? { deadline: parsed.deadline } : {}),
       ...(parsed.finalMap ? { finalMap: parsed.finalMap } : {}),
+      ...(parsed.pendingVotes ? { pendingVotes: parsed.pendingVotes } : {}),
     };
   } catch {
     return { ...EMPTY_STATE };
