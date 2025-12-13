@@ -127,6 +127,9 @@ export async function POST(
     }
 
     // All votes in -> pick the map with most votes (ties broken randomly)
+    // state is ensured above; satisfies TS
+    if (!state) throw new Error("Missing veto state");
+
     const counts: Record<string, number> = {};
     Object.values(selections).forEach((m) => {
       counts[m] = (counts[m] ?? 0) + 1;
