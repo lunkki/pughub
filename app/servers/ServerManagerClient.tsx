@@ -7,6 +7,7 @@ type Server = {
   id: string;
   name: string;
   address: string;
+  rconAddress?: string | null;
   rconPassword: string;
   isActive: boolean;
 };
@@ -19,10 +20,18 @@ export function ServerManagerClient({ initialServers }: Props) {
   const [servers, setServers] = useState<Server[]>(initialServers);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rconServerId, setRconServerId] = useState(
+    initialServers[0]?.id ?? ""
+  );
+  const [rconAddressOverride, setRconAddressOverride] = useState("");
+  const [rconCommand, setRconCommand] = useState("");
+  const [rconBusy, setRconBusy] = useState(false);
+  const [rconResult, setRconResult] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "",
     address: "",
+    rconAddress: "",
     rconPassword: "",
     isActive: true,
   });
@@ -42,7 +51,13 @@ export function ServerManagerClient({ initialServers }: Props) {
         return;
       }
       setServers((prev) => [...prev, data.server]);
-      setForm({ name: "", address: "", rconPassword: "", isActive: true });
+      setForm({
+        name: "",
+        address: "",
+        rconAddress: "",
+        rconPassword: "",
+        isActive: true,
+      });
     } catch (err: any) {
       setError(err?.message ?? "Failed to create server");
     } finally {
@@ -88,6 +103,35 @@ export function ServerManagerClient({ initialServers }: Props) {
     }
   }
 
+  async function runRcon() {
+    if (!rconServerId || !rconCommand.trim()) {
+      setRconResult("Select a server and enter a command");
+      return;
+    }
+    setRconBusy(true);
+    setRconResult(null);
+    try {
+      const res = await fetch(`/api/servers/${rconServerId}/rcon`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          command: rconCommand,
+          address: rconAddressOverride || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRconResult(data.error ?? "RCON failed");
+      } else {
+        setRconResult("Sent");
+      }
+    } catch (err: any) {
+      setRconResult(err?.message ?? "RCON failed");
+    } finally {
+      setRconBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
@@ -104,6 +148,12 @@ export function ServerManagerClient({ initialServers }: Props) {
             placeholder="Address (host:port)"
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+          <input
+            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            placeholder="RCON address (host:port) optional"
+            value={form.rconAddress}
+            onChange={(e) => setForm({ ...form, rconAddress: e.target.value })}
           />
           <input
             className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
@@ -174,6 +224,23 @@ export function ServerManagerClient({ initialServers }: Props) {
                 />
                 <input
                   className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+                  value={server.rconAddress ?? ""}
+                  onChange={(e) =>
+                    setServers((prev) =>
+                      prev.map((s) =>
+                        s.id === server.id
+                          ? { ...s, rconAddress: e.target.value }
+                          : s
+                      )
+                    )
+                  }
+                  onBlur={(e) =>
+                    updateServer(server.id, { rconAddress: e.target.value })
+                  }
+                  placeholder="RCON address (optional)"
+                />
+                <input
+                  className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
                   value={server.rconPassword}
                   onChange={(e) =>
                     setServers((prev) =>
@@ -216,6 +283,48 @@ export function ServerManagerClient({ initialServers }: Props) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
+        <h2 className="text-lg font-semibold mb-3">RCON console</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <select
+            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            value={rconServerId}
+            onChange={(e) => setRconServerId(e.target.value)}
+          >
+            {servers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.rconAddress || s.address})
+              </option>
+            ))}
+          </select>
+          <input
+            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            placeholder="Override RCON address (optional)"
+            value={rconAddressOverride}
+            onChange={(e) => setRconAddressOverride(e.target.value)}
+          />
+        </div>
+        <textarea
+          className="mt-3 w-full px-3 py-2 rounded bg-slate-900 border border-slate-700 text-sm"
+          rows={3}
+          placeholder="rcon command, e.g. status"
+          value={rconCommand}
+          onChange={(e) => setRconCommand(e.target.value)}
+        />
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            onClick={runRcon}
+            disabled={rconBusy}
+            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-sm"
+          >
+            {rconBusy ? "Sending..." : "Send RCON"}
+          </button>
+          {rconResult && (
+            <span className="text-xs text-slate-300">{rconResult}</span>
+          )}
         </div>
       </div>
     </div>

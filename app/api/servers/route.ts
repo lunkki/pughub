@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const address = typeof body.address === "string" ? body.address.trim() : "";
+  const rconAddress =
+    typeof body.rconAddress === "string" ? body.rconAddress.trim() : undefined;
   const rconPassword =
     typeof body.rconPassword === "string" ? body.rconPassword.trim() : "";
   const isActive = typeof body.isActive === "boolean" ? body.isActive : true;
@@ -42,6 +44,7 @@ export async function POST(req: NextRequest) {
     data: {
       name,
       address,
+      ...(rconAddress ? { rconAddress } : {}),
       rconPassword,
       isActive,
     },

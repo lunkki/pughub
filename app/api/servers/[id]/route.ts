@@ -23,6 +23,8 @@ export async function PATCH(
   if (typeof body.rconPassword === "string")
     data.rconPassword = body.rconPassword.trim();
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
+  if (typeof body.rconAddress === "string")
+    data.rconAddress = body.rconAddress.trim();
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });

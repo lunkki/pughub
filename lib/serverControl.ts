@@ -164,3 +164,24 @@ export async function launchScrimServer({
     commands,
   });
 }
+
+export async function runRconCommand({
+  address,
+  rconPassword,
+  command,
+  timeoutMs,
+}: {
+  address: string;
+  rconPassword: string;
+  command: string;
+  timeoutMs?: number;
+}) {
+  const { host, port } = parseHostPort(address);
+  await sendRconCommands({
+    host,
+    port,
+    password: rconPassword,
+    commands: [command],
+    timeoutMs,
+  });
+}
