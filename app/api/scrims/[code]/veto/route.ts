@@ -94,17 +94,24 @@ export async function POST(
 
   // --- Player-vote veto mode ---
   if (scrim.vetoMode === "PLAYERS") {
+    if (!state) {
+      return NextResponse.json(
+        { error: "Veto state missing" },
+        { status: 400 }
+      );
+    }
+    const stateNonNull: VetoState = state;
     const teamPlayers = scrim.players.filter((p) => p.team === myTeam);
     const totalVoters = Math.max(teamPlayers.length, 1);
-    const currentTurn = state.banned.length;
+    const currentTurn = stateNonNull.banned.length;
 
     const isSameTurnPending =
-      state.pendingVotes &&
-      state.pendingVotes.turn === currentTurn &&
-      state.pendingVotes.team === myTeam;
+      stateNonNull.pendingVotes &&
+      stateNonNull.pendingVotes.turn === currentTurn &&
+      stateNonNull.pendingVotes.team === myTeam;
 
     const selections = {
-      ...(isSameTurnPending ? state.pendingVotes?.selections ?? {} : {}),
+      ...(isSameTurnPending ? stateNonNull.pendingVotes?.selections ?? {} : {}),
       [user.id]: banChoice,
     };
 
@@ -112,7 +119,7 @@ export async function POST(
 
     if (!allVoted) {
       const pendingState: VetoState = {
-        ...state,
+        ...stateNonNull,
         pendingVotes: { team: myTeam, turn: currentTurn, selections },
       };
 
@@ -127,9 +134,6 @@ export async function POST(
     }
 
     // All votes in -> pick the map with most votes (ties broken randomly)
-    // state is ensured above; satisfies TS
-    if (!state) throw new Error("Missing veto state");
-
     const counts: Record<string, number> = {};
     Object.values(selections).forEach((m) => {
       counts[m] = (counts[m] ?? 0) + 1;
@@ -138,16 +142,16 @@ export async function POST(
     const topMaps = Object.entries(counts)
       .filter(([_, v]) => v === maxVotes)
       .map(([m]) => m)
-      .filter((m) => state.pool.includes(m));
+      .filter((m) => stateNonNull.pool.includes(m));
 
     banChoice =
       topMaps.length === 0
-        ? state.pool[0]
+        ? stateNonNull.pool[0]
         : topMaps[Math.floor(Math.random() * topMaps.length)];
 
     // Clear pending votes for next turn
     state = {
-      ...state,
+      ...stateNonNull,
       pendingVotes: undefined,
     };
   }
