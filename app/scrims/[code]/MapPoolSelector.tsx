@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MAPS, ACTIVE_DUTY, type MapInfo } from "@/lib/maps";
 import { Button } from "@/app/components/ui/Button";
 
@@ -18,6 +19,11 @@ export function MapPoolSelector({
   const poolRef = useRef<string[]>(initialMapPool ?? []);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeDutySet = useMemo(() => new Set(ACTIVE_DUTY.map((m) => m.id)), []);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Keep local state in sync with server updates (router.refresh preserves client state)
@@ -156,57 +162,128 @@ export function MapPoolSelector({
         </Button>
       </div>
 
-      {open && (
-        <div className="ph-animate-in absolute z-50 mt-4 max-h-[75vh] w-full overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/90 p-4 shadow-2xl shadow-sky-900/30 backdrop-blur md:p-5">
-          {canEdit ? (
-            <div className="mb-4 flex flex-wrap gap-2">
-              <Button
-                onClick={selectActiveDuty}
-                variant="outline"
-                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
-              >
-                Active duty
-              </Button>
+      {mounted && open
+        ? createPortal(
+            <MapPoolModal
+              canEdit={canEdit}
+              onClose={closeDropdown}
+              onSelectActiveDuty={selectActiveDuty}
+              onSelectAll={selectAll}
+              onClearAll={clearAll}
+              onDone={closeDropdown}
+              sections={sections}
+              pool={pool}
+              onToggleMap={toggleMap}
+            />,
+            document.body
+          )
+        : null}
+    </div>
+  );
+}
 
-              <Button
-                onClick={selectAll}
-                variant="outline"
-                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
-              >
-                Select all
-              </Button>
+function MapPoolModal({
+  canEdit,
+  onClose,
+  onSelectActiveDuty,
+  onSelectAll,
+  onClearAll,
+  onDone,
+  sections,
+  pool,
+  onToggleMap,
+}: {
+  canEdit: boolean;
+  onClose: () => void;
+  onSelectActiveDuty: () => void;
+  onSelectAll: () => void;
+  onClearAll: () => void;
+  onDone: () => void;
+  sections: { title: string; maps: MapInfo[] }[];
+  pool: string[];
+  onToggleMap: (id: string) => void;
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
 
-              <Button
-                onClick={clearAll}
-                variant="outline"
-                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
-              >
-                Clear
-              </Button>
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-              <Button
-                onClick={closeDropdown}
-                className="ml-auto bg-emerald-600 text-emerald-50 hover:bg-emerald-500 active:scale-[0.98]"
-              >
-                Done
-              </Button>
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-2 backdrop-blur-sm md:items-center md:p-6"
+      onMouseDown={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="ph-animate-in w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/90 shadow-2xl shadow-sky-900/40"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col gap-3 border-b border-slate-800 bg-slate-900/60 p-4 md:flex-row md:items-center md:justify-between md:p-5">
+          <div>
+            <div className="text-sm font-semibold text-slate-100">Map pool</div>
+            <div className="mt-1 text-xs text-slate-400">
+              {canEdit
+                ? "Select maps for this scrim."
+                : "View-only. Selected maps are highlighted in green."}
             </div>
-          ) : (
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <p className="text-xs text-slate-400">
-                View-only. Selected maps are highlighted in green.
-              </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 md:justify-end">
+            {canEdit ? (
+              <>
+                <Button
+                  onClick={onSelectActiveDuty}
+                  variant="outline"
+                  className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+                >
+                  Active duty
+                </Button>
+                <Button
+                  onClick={onSelectAll}
+                  variant="outline"
+                  className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+                >
+                  Select all
+                </Button>
+                <Button
+                  onClick={onClearAll}
+                  variant="outline"
+                  className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+                >
+                  Clear
+                </Button>
+                <Button
+                  onClick={onDone}
+                  className="bg-emerald-600 text-emerald-50 hover:bg-emerald-500 active:scale-[0.98]"
+                >
+                  Done
+                </Button>
+              </>
+            ) : (
               <Button
-                onClick={closeDropdown}
+                onClick={onClose}
                 variant="outline"
                 className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
               >
                 Close
               </Button>
-            </div>
-          )}
+            )}
+          </div>
+        </div>
 
-          <div className="space-y-5">
+        <div className="max-h-[80vh] overflow-y-auto p-4 md:p-5">
+          <div className="space-y-6">
             {sections.map((section) => (
               <div key={section.title}>
                 <div className="mb-3 flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2">
@@ -226,7 +303,7 @@ export function MapPoolSelector({
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => toggleMap(m.id)}
+                        onClick={() => onToggleMap(m.id)}
                         disabled={!canEdit}
                         className={`group relative overflow-hidden rounded-lg border text-left transition-transform duration-150 ease-out ${
                           canEdit ? "active:scale-[0.99]" : "cursor-default"
@@ -241,7 +318,7 @@ export function MapPoolSelector({
                         <img
                           src={m.image}
                           alt={m.name}
-                          className={`h-28 w-full object-cover transition duration-200 md:h-32 ${
+                          className={`h-32 w-full object-cover transition duration-200 md:h-36 ${
                             isSelected
                               ? "opacity-100"
                               : "opacity-70 group-hover:opacity-100"
@@ -268,7 +345,7 @@ export function MapPoolSelector({
             ))}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

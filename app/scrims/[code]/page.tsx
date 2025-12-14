@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { MapPoolSelector } from "./MapPoolSelector";
 import { JoinButtons } from "./JoinButtons";
 import { PickButton } from "./PickButton";
+import { KickButton } from "./KickButton";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SseListener } from "./SseListener";
@@ -195,14 +196,25 @@ export default async function ScrimLobbyPage({
               )}
 
               {team1.map((player) => (
-                <div key={player.id} className="flex items-center gap-3 mb-2">
-                  <img
-                    src={player.user.avatarUrl ?? ""}
-                    className="h-8 w-8 rounded-full border border-slate-600"
-                  />
-                  <span>{player.user.displayName}</span>
-                  {player.isCaptain && (
-                    <span className="text-xs text-yellow-400">(C)</span>
+                <div
+                  key={player.id}
+                  className="mb-2 flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={player.user.avatarUrl ?? ""}
+                      className="h-8 w-8 rounded-full border border-slate-600"
+                    />
+                    <span>{player.user.displayName}</span>
+                    {player.isCaptain && (
+                      <span className="text-xs text-yellow-400">(C)</span>
+                    )}
+                  </div>
+                  {isCreator && player.userId !== user.id && (
+                    <KickButton
+                      scrimCode={updatedScrim.code}
+                      targetUserId={player.userId}
+                    />
                   )}
                 </div>
               ))}
@@ -216,14 +228,25 @@ export default async function ScrimLobbyPage({
               )}
 
               {team2.map((player) => (
-                <div key={player.id} className="flex items-center gap-3 mb-2">
-                  <img
-                    src={player.user.avatarUrl ?? ""}
-                    className="h-8 w-8 rounded-full border border-slate-600"
-                  />
-                  <span>{player.user.displayName}</span>
-                  {player.isCaptain && (
-                    <span className="text-xs text-yellow-400">(C)</span>
+                <div
+                  key={player.id}
+                  className="mb-2 flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={player.user.avatarUrl ?? ""}
+                      className="h-8 w-8 rounded-full border border-slate-600"
+                    />
+                    <span>{player.user.displayName}</span>
+                    {player.isCaptain && (
+                      <span className="text-xs text-yellow-400">(C)</span>
+                    )}
+                  </div>
+                  {isCreator && player.userId !== user.id && (
+                    <KickButton
+                      scrimCode={updatedScrim.code}
+                      targetUserId={player.userId}
+                    />
                   )}
                 </div>
               ))}
@@ -252,12 +275,20 @@ export default async function ScrimLobbyPage({
                   <span>{player.user.displayName}</span>
                 </div>
 
-                {isCaptain && (
-                  <PickButton
-                    scrimCode={updatedScrim.code}
-                    targetUserId={player.userId}
-                  />
-                )}
+                <div className="flex items-center gap-2">
+                  {isCaptain && (
+                    <PickButton
+                      scrimCode={updatedScrim.code}
+                      targetUserId={player.userId}
+                    />
+                  )}
+                  {isCreator && player.userId !== user.id && (
+                    <KickButton
+                      scrimCode={updatedScrim.code}
+                      targetUserId={player.userId}
+                    />
+                  )}
+                </div>
               </div>
             ))}
           </div>
