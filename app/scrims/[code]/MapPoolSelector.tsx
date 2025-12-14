@@ -220,7 +220,7 @@ function MapPoolModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-2 backdrop-blur-sm md:items-center md:p-6"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-2 md:items-center md:p-6"
       onMouseDown={onClose}
       role="dialog"
       aria-modal="true"

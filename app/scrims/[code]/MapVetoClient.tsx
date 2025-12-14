@@ -186,7 +186,7 @@ export function MapVetoClient({
               </button>
 
               {banInfo && (
-                <div className="ph-animate-in absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm text-xs font-semibold text-slate-200">
+                <div className="ph-animate-in absolute inset-0 flex items-center justify-center bg-slate-950/80 text-xs font-semibold text-slate-200">
                   {banInfo.by} BAN
                 </div>
               )}
@@ -196,7 +196,7 @@ export function MapVetoClient({
                 </div>
               )}
               {!banInfo && !isFinal && !inPool && vetoStarted && (
-                <div className="ph-animate-in absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm text-xs font-semibold text-slate-200">
+                <div className="ph-animate-in absolute inset-0 flex items-center justify-center bg-slate-950/70 text-xs font-semibold text-slate-200">
                   REMOVED
                 </div>
               )}
