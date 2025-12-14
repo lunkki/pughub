@@ -11,6 +11,7 @@ type ScrimControlsProps = {
   selectedMap: string | null;
   serverAddress?: string;
   connectPassword?: string;
+  embedded?: boolean;
 };
 
 export function ScrimControls({
@@ -21,6 +22,7 @@ export function ScrimControls({
   selectedMap,
   serverAddress,
   connectPassword,
+  embedded = false,
 }: ScrimControlsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +88,13 @@ export function ScrimControls({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+    <div
+      className={
+        embedded
+          ? ""
+          : "rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10"
+      }
+    >
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Scrim management</h2>

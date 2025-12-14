@@ -323,3 +323,11 @@ export const ACTIVE_DUTY = MAPS.filter((m) =>
 
 // ALL MAPS (full objects)
 export const ALL_MAPS = MAPS;
+
+export function getMapById(id: string): MapInfo | undefined {
+  return MAPS.find((m) => m.id === id);
+}
+
+export function getMapCommand(id: string): string {
+  return getMapById(id)?.command ?? `changelevel ${id}`;
+}

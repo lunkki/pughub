@@ -1,4 +1,5 @@
 import net from "net";
+import { getMapCommand } from "./maps";
 
 const DEFAULT_CONNECT_PASSWORD =
   process.env.DEFAULT_SERVER_PASSWORD || "secret-password-here";
@@ -154,7 +155,7 @@ export async function launchScrimServer({
   const commands = [
     `sv_password ${password}`,
     "exec comp",
-    `changelevel ${map}`,
+    getMapCommand(map),
   ];
 
   await sendRconCommands({

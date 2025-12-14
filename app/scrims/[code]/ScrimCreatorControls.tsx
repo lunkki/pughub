@@ -17,12 +17,14 @@ type ScrimCreatorControlsProps = {
     isActive: boolean;
   }[];
   canManageServers: boolean;
+  embedded?: boolean;
 };
 
 export function ScrimCreatorControls({
   scrim,
   servers,
   canManageServers,
+  embedded = false,
 }: ScrimCreatorControlsProps) {
   const router = useRouter();
   const [mode, setMode] = useState(scrim.vetoMode);
@@ -61,20 +63,31 @@ export function ScrimCreatorControls({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold">Scrim settings</h3>
-          <p className="mt-1 text-xs text-slate-400">
-            Locked once the lobby moves past setup.
-          </p>
+    <div className={embedded ? "" : "rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10"}>
+      {!embedded ? (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold">Scrim settings</h3>
+            <p className="mt-1 text-xs text-slate-400">
+              Locked once the lobby moves past setup.
+            </p>
+          </div>
+          {locked && (
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] uppercase tracking-[0.15em] text-slate-300">
+              Locked
+            </span>
+          )}
         </div>
-        {locked && (
-          <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] uppercase tracking-[0.15em] text-slate-300">
-            Locked
-          </span>
-        )}
-      </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-slate-100">Settings</div>
+          {locked && (
+            <span className="rounded-full border border-slate-700 px-3 py-0.5 text-[11px] uppercase tracking-[0.15em] text-slate-300">
+              Locked
+            </span>
+          )}
+        </div>
+      )}
 
       {/* SERVER SELECT */}
       <div className="mt-4">

@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { MapPoolSelector } from "./MapPoolSelector";
-import { JoinButtons } from "./JoinButtons";
 import { PickButton } from "./PickButton";
 import { KickButton } from "./KickButton";
+import { TeamMoveButton } from "./TeamMoveButton";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SseListener } from "./SseListener";
@@ -168,42 +168,51 @@ export default async function ScrimLobbyPage({
       {/* JOIN + MANAGEMENT */}
       <div className="grid gap-6 lg:grid-cols-[1.2fr,1fr]">
         <div className="space-y-4">
-          {canChangeTeams && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-              <JoinButtons code={updatedScrim.code} canChangeTeams={canChangeTeams} />
-            </div>
-          )}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+            <ScrimControls
+              scrimCode={updatedScrim.code}
+              isCreator={isCreator}
+              vetoState={vetoState}
+              mapPoolLength={mapPool.length}
+              selectedMap={updatedScrim.selectedMap}
+              serverAddress={serverAddress || undefined}
+              connectPassword={connectPassword}
+              embedded
+            />
 
-          <ScrimControls
-            scrimCode={updatedScrim.code}
-            isCreator={isCreator}
-            vetoState={vetoState}
-            mapPoolLength={mapPool.length}
-            selectedMap={updatedScrim.selectedMap}
-            serverAddress={serverAddress || undefined}
-            connectPassword={connectPassword}
-          />
-
-          {isCreator && (
-            <div>
-              <ScrimCreatorControls
-                scrim={{
-                  code: updatedScrim.code,
-                  vetoMode: updatedScrim.vetoMode,
-                  status: updatedScrim.status,
-                  serverId: updatedScrim.serverId,
-                }}
-                servers={servers}
-                canManageServers={canManageServers}
-              />
-            </div>
-          )}
+            {isCreator && (
+              <div className="mt-5 border-t border-slate-800 pt-5">
+                <ScrimCreatorControls
+                  scrim={{
+                    code: updatedScrim.code,
+                    vetoMode: updatedScrim.vetoMode,
+                    status: updatedScrim.status,
+                    serverId: updatedScrim.serverId,
+                  }}
+                  servers={servers}
+                  canManageServers={canManageServers}
+                  embedded
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-              <h2 className="text-lg font-semibold mb-3">Team 1</h2>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold">Team 1</h2>
+                {canChangeTeams && currentUserTeam !== "TEAM1" && (
+                  <TeamMoveButton
+                    scrimCode={updatedScrim.code}
+                    team="TEAM1"
+                    className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+                  >
+                    Join
+                  </TeamMoveButton>
+                )}
+              </div>
 
               {team1.length === 0 && (
                 <p className="text-sm text-slate-400">No players yet.</p>
@@ -235,7 +244,18 @@ export default async function ScrimLobbyPage({
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-              <h2 className="text-lg font-semibold mb-3">Team 2</h2>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold">Team 2</h2>
+                {canChangeTeams && currentUserTeam !== "TEAM2" && (
+                  <TeamMoveButton
+                    scrimCode={updatedScrim.code}
+                    team="TEAM2"
+                    className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+                  >
+                    Join
+                  </TeamMoveButton>
+                )}
+              </div>
 
               {team2.length === 0 && (
                 <p className="text-sm text-slate-400">No players yet.</p>
@@ -268,7 +288,18 @@ export default async function ScrimLobbyPage({
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-            <h2 className="text-lg font-semibold mb-3">Waiting Room</h2>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Waiting Room</h2>
+              {canChangeTeams && currentUserTeam !== "WAITING_ROOM" && (
+                <TeamMoveButton
+                  scrimCode={updatedScrim.code}
+                  team="WAITING_ROOM"
+                  className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+                >
+                  Move here
+                </TeamMoveButton>
+              )}
+            </div>
 
             {waiting.length === 0 && (
               <p className="text-sm text-slate-400">
@@ -310,16 +341,14 @@ export default async function ScrimLobbyPage({
       </div>
 
       {/* MAPS + VETO */}
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-          <MapPoolSelector
-            scrimCode={updatedScrim.code}
-            initialMapPool={mapPool}
-            canEdit={isCreator && updatedScrim.status === "LOBBY"}
-          />
-        </div>
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+        <MapPoolSelector
+          scrimCode={updatedScrim.code}
+          initialMapPool={mapPool}
+          canEdit={isCreator && updatedScrim.status === "LOBBY"}
+        />
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+        <div className="mt-5 border-t border-slate-800 pt-5">
           <MapVetoClient
             scrimCode={updatedScrim.code}
             mapPool={mapPool}
