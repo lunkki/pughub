@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { MAPS, ACTIVE_DUTY } from "@/lib/maps";
+import { Button } from "@/app/components/ui/Button";
 
 export function MapPoolSelector({
   scrimCode,
@@ -15,6 +16,13 @@ export function MapPoolSelector({
   const [open, setOpen] = useState(false);
   const [pool, setPool] = useState<string[]>(initialMapPool ?? []);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Keep local state in sync with server updates (router.refresh preserves client state)
+    // Don't clobber edits while the editor dropdown is open.
+    if (canEdit && open) return;
+    setPool(initialMapPool ?? []);
+  }, [initialMapPool, canEdit, open]);
 
   // Save to server
   async function savePool(updated: string[]) {
@@ -49,11 +57,12 @@ export function MapPoolSelector({
     setPool([]);
   }
 
-  // Close & save
+  // Close (and save if editable)
   function closeDropdown() {
-    if (!canEdit) return;
     setOpen(false);
-    savePool(pool);
+    if (canEdit) {
+      savePool(pool);
+    }
   }
 
   // Close on outside click
@@ -68,92 +77,122 @@ export function MapPoolSelector({
   }, [open, pool]);
 
   const selectedCount = pool.length;
+  const displayedMaps = useMemo(() => {
+    return [...MAPS].sort((a, b) => {
+      const aSelected = pool.includes(a.id);
+      const bSelected = pool.includes(b.id);
+      if (aSelected !== bSelected) return aSelected ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [pool]);
 
   return (
-    <div className="relative w-full max-w-xl" ref={dropdownRef}>
-
-      {/* COLLAPSED VIEW */}
-      {!open && (
-        <div className="bg-slate-800 p-3 rounded border border-slate-600 flex justify-between items-center">
-          <div className="text-sm">
-            Map Pool:{" "}
-            <span className="text-sky-300 font-semibold">{selectedCount}</span>{" "}
-            maps selected
-          </div>
-          <button
-            onClick={() => canEdit && setOpen(true)}
-            disabled={!canEdit}
-            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded disabled:opacity-40"
-          >
-            {canEdit ? "Edit" : "View only"}
-          </button>
+    <div className="relative w-full" ref={dropdownRef}>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Map pool</h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Selected: <span className="font-semibold text-sky-200">{selectedCount}</span>
+          </p>
         </div>
-      )}
+        <Button
+          onClick={() => setOpen((v) => !v)}
+          variant="outline"
+          className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+        >
+          {open ? "Close" : canEdit ? "Edit" : "View maps"}
+        </Button>
+      </div>
 
-      {/* DROPDOWN PANEL */}
-      {open && canEdit && (
-        <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 max-h-[500px] overflow-y-auto">
+      {open && (
+        <div className="ph-animate-in absolute z-50 mt-4 max-h-[520px] w-full overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/90 p-4 shadow-2xl shadow-sky-900/30 backdrop-blur">
+          {canEdit ? (
+            <div className="mb-4 flex flex-wrap gap-2">
+              <Button
+                onClick={selectActiveDuty}
+                variant="outline"
+                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+              >
+                Active duty
+              </Button>
 
-          {/* Summary inside expanded dropdown */}
-          <div className="text-sm text-slate-300 mb-3">
-            Selected maps:{" "}
-            <span className="text-sky-300 font-semibold">{selectedCount}</span>
-          </div>
+              <Button
+                onClick={selectAll}
+                variant="outline"
+                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+              >
+                Select all
+              </Button>
 
-          {/* Quick Actions */}
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={selectActiveDuty}
-              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              Active Duty
-            </button>
+              <Button
+                onClick={clearAll}
+                variant="outline"
+                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+              >
+                Clear
+              </Button>
 
-            <button
-              onClick={selectAll}
-              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              Select All
-            </button>
+              <Button
+                onClick={closeDropdown}
+                className="ml-auto bg-emerald-600 text-emerald-50 hover:bg-emerald-500 active:scale-[0.98]"
+              >
+                Done
+              </Button>
+            </div>
+          ) : (
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-400">
+                View-only. Selected maps are highlighted in green.
+              </p>
+              <Button
+                onClick={closeDropdown}
+                variant="outline"
+                className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
+              >
+                Close
+              </Button>
+            </div>
+          )}
 
-            <button
-              onClick={clearAll}
-              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              Clear
-            </button>
-
-            <button
-              onClick={closeDropdown}
-              className="ml-auto px-3 py-1 bg-green-600 hover:bg-green-500 rounded"
-            >
-              Done
-            </button>
-          </div>
-
-          {/* MAP GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {MAPS.map((m) => {
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {displayedMaps.map((m) => {
               const isSelected = pool.includes(m.id);
 
               return (
-                <div
+                <button
                   key={m.id}
+                  type="button"
                   onClick={() => toggleMap(m.id)}
-                  className={`cursor-pointer border rounded overflow-hidden transition
-                    ${isSelected ? "border-green-400" : "border-slate-700 opacity-40 hover:opacity-80"}`}
+                  disabled={!canEdit}
+                  className={`group relative overflow-hidden rounded-lg border text-left transition-transform duration-150 ease-out ${
+                    canEdit ? "active:scale-[0.99]" : "cursor-default"
+                  } ${
+                    isSelected
+                      ? "border-emerald-500 bg-slate-900/60 ring-1 ring-emerald-500/30"
+                      : canEdit
+                        ? "border-slate-800 bg-slate-900/30 hover:border-sky-500/50 hover:bg-slate-900/50"
+                        : "border-slate-800 bg-slate-900/30 opacity-50"
+                  }`}
                 >
                   <img
                     src={m.image}
                     alt={m.name}
-                    className="w-full h-24 object-cover"
+                    className={`h-24 w-full object-cover transition duration-200 ${
+                      isSelected ? "opacity-100" : "opacity-70 group-hover:opacity-100"
+                    }`}
                   />
-                  <div className="p-2 text-center text-sm">{m.name}</div>
-                </div>
+                  <div className="bg-slate-950/70 p-2 text-center text-sm text-slate-200">
+                    {m.name}
+                  </div>
+                  {isSelected && (
+                    <div className="ph-animate-in absolute left-2 top-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-50 shadow">
+                      Selected
+                    </div>
+                  )}
+                </button>
               );
             })}
           </div>
-
         </div>
       )}
     </div>

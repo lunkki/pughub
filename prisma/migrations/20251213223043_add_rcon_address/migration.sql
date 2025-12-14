@@ -1,2 +1,3 @@
 -- Add rconAddress to Server for separate RCON endpoint
-ALTER TABLE "Server" ADD COLUMN "rconAddress" TEXT;
+-- Safe to re-run if column already exists
+ALTER TABLE "Server" ADD COLUMN IF NOT EXISTS "rconAddress" TEXT;

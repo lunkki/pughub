@@ -12,7 +12,6 @@ import { ScrimControls } from "./ScrimControls";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
 
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -26,12 +25,16 @@ export default async function ScrimLobbyPage({
   // 1. Require login
   const user = await getCurrentUser();
   if (!user) {
+    const redirectParam = encodeURIComponent(`/scrims/${code}`);
     return (
       <div className="p-10 text-slate-50">
         <h1 className="text-xl font-bold mb-4">
           You must be logged in to view this scrim.
         </h1>
-        <Link href="/api/auth/steam" className="underline text-sky-400">
+        <Link
+          href={`/api/auth/steam?redirect=${redirectParam}`}
+          className="underline text-sky-400"
+        >
           Sign in with Steam
         </Link>
       </div>
@@ -90,7 +93,11 @@ export default async function ScrimLobbyPage({
 
   const serverAddress = updatedScrim.server?.address ?? null;
   const connectPassword = getConnectPassword();
-
+  const selectedMap = updatedScrim.selectedMap;
+  const finalConnectString =
+    serverAddress && connectPassword && selectedMap
+      ? `connect ${serverAddress}; password ${connectPassword}`
+      : null;
 
   const playerForUser = updatedScrim.players.find(
     (p) => p.userId === user.id
@@ -104,6 +111,7 @@ export default async function ScrimLobbyPage({
 
   const vetoState = parseVetoState(updatedScrim.vetoState);
   const isCreator = user.id === updatedScrim.creatorId;
+  const statusLabel = updatedScrim.status.replace(/_/g, " ");
 
   const team1 = updatedScrim.players.filter((p) => p.team === "TEAM1");
   const team2 = updatedScrim.players.filter((p) => p.team === "TEAM2");
@@ -117,143 +125,169 @@ export default async function ScrimLobbyPage({
   const isCaptain = user.id === captain1UserId || user.id === captain2UserId;
 
   return (
-    <div className="p-8 text-slate-50">
+    <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
       <SseListener code={updatedScrim.code} />
 
-      <h1 className="text-2xl font-bold mb-6">
-        Scrim Lobby – {updatedScrim.code}
-      </h1>
+      {/* HERO */}
+      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-[#0f1b2d] p-6 shadow-xl shadow-sky-900/30">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-sky-200">
+              Scrim lobby
+            </p>
+            <h1 className="text-3xl font-semibold mt-1">{updatedScrim.code}</h1>
+            <p className="text-sm text-slate-300 mt-2">
+              Team up, draft maps, and launch when everyone is ready.
+            </p>
+          </div>
 
-      {/* JOIN BUTTONS */}
-    <JoinButtons code={updatedScrim.code} canChangeTeams={canChangeTeams} />
-
-
-      {/* SCRIM MANAGEMENT / START MATCH (starts veto) */}
-      <div className="mt-6">
-        <ScrimControls
-          scrimCode={updatedScrim.code}
-          isCreator={isCreator}
-          vetoState={vetoState}
-          mapPoolLength={mapPool.length}
-          selectedMap={updatedScrim.selectedMap}
-          serverAddress={serverAddress || undefined}
-          connectPassword={connectPassword}
-        />
-      </div>
-
-      {/* Extra creator-only config (team mode, veto type etc.) */}
-      {isCreator && (
-        <div className="mt-4">
-          <ScrimCreatorControls scrim={updatedScrim} />
-        </div>
-      )}
-
-      {/* TEAMS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        {/* TEAM 1 */}
-        <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
-          <h2 className="text-lg font-semibold mb-3">Team 1</h2>
-
-          {team1.length === 0 && (
-            <p className="text-sm text-slate-400">No players yet.</p>
-          )}
-
-          {team1.map((player) => (
-            <div key={player.id} className="flex items-center gap-3 mb-2">
-              <img
-                src={player.user.avatarUrl ?? ""}
-                className="h-8 w-8 rounded-full border border-slate-600"
-              />
-              <span>{player.user.displayName}</span>
-              {player.isCaptain && (
-                <span className="text-xs text-yellow-400">(C)</span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* TEAM 2 */}
-        <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
-          <h2 className="text-lg font-semibold mb-3">Team 2</h2>
-
-          {team2.length === 0 && (
-            <p className="text-sm text-slate-400">No players yet.</p>
-          )}
-
-          {team2.map((player) => (
-            <div key={player.id} className="flex items-center gap-3 mb-2">
-              <img
-                src={player.user.avatarUrl ?? ""}
-                className="h-8 w-8 rounded-full border border-slate-600"
-              />
-              <span>{player.user.displayName}</span>
-              {player.isCaptain && (
-                <span className="text-xs text-yellow-400">(C)</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* WAITING ROOM */}
-      <div className="mt-8 border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
-        <h2 className="text-lg font-semibold mb-3">Waiting Room</h2>
-
-        {waiting.length === 0 && (
-          <p className="text-sm text-slate-400">
-            No players in waiting room.
-          </p>
-        )}
-
-        {waiting.map((player) => (
-          <div
-            key={player.id}
-            className="flex items-center justify-between gap-3 mb-2"
-          >
-            <div className="flex items-center gap-3">
-              <img
-                src={player.user.avatarUrl ?? ""}
-                className="h-8 w-8 rounded-full border border-slate-600"
-              />
-              <span>{player.user.displayName}</span>
-            </div>
-
-            {/* CAPTAIN-ONLY PICK BUTTON */}
-            {isCaptain && (
-              <PickButton
-                scrimCode={updatedScrim.code}
-                targetUserId={player.userId}
-              />
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] uppercase tracking-[0.15em] text-slate-200">
+              Status: {statusLabel}
+            </span>
+            {selectedMap && (
+              <span className="rounded-full border border-emerald-600/70 bg-emerald-900/30 px-3 py-1 text-xs font-semibold text-emerald-100">
+                Map: {selectedMap}
+              </span>
+            )}
+            {finalConnectString && (
+              <span className="rounded-full border border-cyan-600/70 bg-cyan-900/30 px-3 py-1 text-xs font-semibold text-cyan-100">
+                {finalConnectString}
+              </span>
             )}
           </div>
-        ))}
+        </div>
       </div>
 
-      {/* MAP POOL CONFIG + DISPLAY */}
-      <div className="mt-10">
-        <MapPoolSelector
-          scrimCode={updatedScrim.code}
-          initialMapPool={mapPool}
-          canEdit={isCreator && updatedScrim.status === "LOBBY"}
+      {/* JOIN + MANAGEMENT */}
+      <div className="grid gap-6 lg:grid-cols-[1.2fr,1fr]">
+        <div className="space-y-4">
+          {canChangeTeams && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+              <JoinButtons code={updatedScrim.code} canChangeTeams={canChangeTeams} />
+            </div>
+          )}
 
-        />
+          <ScrimControls
+            scrimCode={updatedScrim.code}
+            isCreator={isCreator}
+            vetoState={vetoState}
+            mapPoolLength={mapPool.length}
+            selectedMap={updatedScrim.selectedMap}
+            serverAddress={serverAddress || undefined}
+            connectPassword={connectPassword}
+          />
 
+          {isCreator && (
+            <div>
+              <ScrimCreatorControls scrim={updatedScrim} />
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+              <h2 className="text-lg font-semibold mb-3">Team 1</h2>
+
+              {team1.length === 0 && (
+                <p className="text-sm text-slate-400">No players yet.</p>
+              )}
+
+              {team1.map((player) => (
+                <div key={player.id} className="flex items-center gap-3 mb-2">
+                  <img
+                    src={player.user.avatarUrl ?? ""}
+                    className="h-8 w-8 rounded-full border border-slate-600"
+                  />
+                  <span>{player.user.displayName}</span>
+                  {player.isCaptain && (
+                    <span className="text-xs text-yellow-400">(C)</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+              <h2 className="text-lg font-semibold mb-3">Team 2</h2>
+
+              {team2.length === 0 && (
+                <p className="text-sm text-slate-400">No players yet.</p>
+              )}
+
+              {team2.map((player) => (
+                <div key={player.id} className="flex items-center gap-3 mb-2">
+                  <img
+                    src={player.user.avatarUrl ?? ""}
+                    className="h-8 w-8 rounded-full border border-slate-600"
+                  />
+                  <span>{player.user.displayName}</span>
+                  {player.isCaptain && (
+                    <span className="text-xs text-yellow-400">(C)</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+            <h2 className="text-lg font-semibold mb-3">Waiting Room</h2>
+
+            {waiting.length === 0 && (
+              <p className="text-sm text-slate-400">
+                No players in waiting room.
+              </p>
+            )}
+
+            {waiting.map((player) => (
+              <div
+                key={player.id}
+                className="flex items-center justify-between gap-3 mb-2"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={player.user.avatarUrl ?? ""}
+                    className="h-8 w-8 rounded-full border border-slate-600"
+                  />
+                  <span>{player.user.displayName}</span>
+                </div>
+
+                {isCaptain && (
+                  <PickButton
+                    scrimCode={updatedScrim.code}
+                    targetUserId={player.userId}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* MAP VETO UI (ABBA bans etc.) */}
-      <div className="mt-10">
-        <MapVetoClient
-          scrimCode={updatedScrim.code}
-          mapPool={mapPool}
-          state={vetoState}
-          myTeam={
-            currentUserTeam === "TEAM1" || currentUserTeam === "TEAM2"
-              ? (currentUserTeam as TeamSide)
-              : null
-          }
-          vetoMode={updatedScrim.vetoMode}
-          players={updatedScrim.players}
-        />
+      {/* MAPS + VETO */}
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+          <MapPoolSelector
+            scrimCode={updatedScrim.code}
+            initialMapPool={mapPool}
+            canEdit={isCreator && updatedScrim.status === "LOBBY"}
+          />
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+          <MapVetoClient
+            scrimCode={updatedScrim.code}
+            mapPool={mapPool}
+            state={vetoState}
+            myTeam={
+              currentUserTeam === "TEAM1" || currentUserTeam === "TEAM2"
+                ? (currentUserTeam as TeamSide)
+                : null
+            }
+            vetoMode={updatedScrim.vetoMode}
+            players={updatedScrim.players}
+          />
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/app/components/ui/Button";
+
 export function PickButton({
   scrimCode,
   targetUserId
@@ -17,11 +19,11 @@ export function PickButton({
   }
 
   return (
-    <button
+    <Button
       onClick={pick}
-      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-black"
+      className="bg-amber-400 text-slate-950 hover:bg-amber-300 active:scale-[0.98]"
     >
       Pick
-    </button>
+    </Button>
   );
 }

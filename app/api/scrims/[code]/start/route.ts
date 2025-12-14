@@ -69,7 +69,7 @@ export async function POST(
       await prisma.scrim.update({
         where: { id: scrim.id },
         data: {
-          status: "IN_PROGRESS",
+          status: "READY_TO_PLAY",
           selectedMap: finalMap,
           vetoState: JSON.stringify({
             phase: "DONE",
@@ -97,7 +97,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      status: "IN_PROGRESS",
+      status: "READY_TO_PLAY",
       finalMap,
     });
   }
@@ -109,7 +109,7 @@ export async function POST(
       await prisma.scrim.update({
         where: { id: scrim.id },
         data: {
-          status: "IN_PROGRESS",
+          status: "READY_TO_PLAY",
           selectedMap: finalMap,
           vetoState: JSON.stringify({
             phase: "DONE",
@@ -137,7 +137,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      status: "IN_PROGRESS",
+      status: "READY_TO_PLAY",
       finalMap,
     });
   }
@@ -156,10 +156,10 @@ export async function POST(
   await prisma.scrim.update({
     where: { id: scrim.id },
     data: {
-      status: "STARTING", // "veto in progress"
+      status: "MAP_VETO",
       vetoState: JSON.stringify(initialState),
     },
   });
 
-  return NextResponse.json({ ok: true, status: "STARTING", state: initialState });
+  return NextResponse.json({ ok: true, status: "MAP_VETO", state: initialState });
 }

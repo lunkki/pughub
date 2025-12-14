@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/app/components/ui/Button";
+
 export function JoinButtons({
   code,
   canChangeTeams,
@@ -20,27 +22,28 @@ export function JoinButtons({
   if (!canChangeTeams) return null; // totally hide when locked
 
   return (
-    <div className="flex gap-3">
-      <button
+    <div className="flex flex-wrap gap-3">
+      <Button
         onClick={() => join("TEAM1")}
-        className="px-3 py-1 rounded bg-sky-600 hover:bg-sky-700"
+        className="bg-sky-600 hover:bg-sky-500 active:scale-[0.98]"
       >
         Join Team 1
-      </button>
+      </Button>
 
-      <button
+      <Button
         onClick={() => join("TEAM2")}
-        className="px-3 py-1 rounded bg-sky-600 hover:bg-sky-700"
+        className="bg-sky-600 hover:bg-sky-500 active:scale-[0.98]"
       >
         Join Team 2
-      </button>
+      </Button>
 
-      <button
+      <Button
         onClick={() => join("WAITING_ROOM")}
-        className="px-3 py-1 rounded bg-slate-600 hover:bg-slate-500"
+        variant="outline"
+        className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
       >
         Move to Waiting Room
-      </button>
+      </Button>
     </div>
   );
 }

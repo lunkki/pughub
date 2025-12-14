@@ -87,8 +87,8 @@ enum Role {
 
 enum ScrimStatus {
   LOBBY
-  STARTING
-  IN_PROGRESS
+  MAP_VETO
+  READY_TO_PLAY
   FINISHED
   CANCELLED
 }

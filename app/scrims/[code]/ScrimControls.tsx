@@ -86,25 +86,16 @@ export function ScrimControls({
   }
 
   return (
-    <div className="mb-6 border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
           <h2 className="text-lg font-semibold">Scrim management</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Phase: {vetoState.phase}
-            {selectedMap && vetoState.phase === "DONE" && (
-              <>
-                {" - "}Final map:{" "}
-                <span className="font-semibold">{selectedMap}</span>
-              </>
-            )}
+          <p className="text-xs text-slate-400">
+            Start the veto when your map pool is set. Only the creator can launch.
           </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Selected maps: {mapPoolLength}
-          </p>
-          {selectedMap && finalConnectString && (
-            <p className="text-xs text-emerald-400 mt-1">
-              Connect: <span className="font-mono">{finalConnectString}</span>
+          {mapPoolLength < 1 && (
+            <p className="text-[11px] text-amber-300">
+              Add at least one map to start.
             </p>
           )}
         </div>
@@ -113,7 +104,7 @@ export function ScrimControls({
           <button
             onClick={handleStart}
             disabled={primaryDisabled}
-            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-sm"
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-50 hover:bg-emerald-700 disabled:opacity-40"
           >
             {primaryLabel}
           </button>

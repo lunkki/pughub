@@ -89,24 +89,16 @@ export function MapVetoClient({
   }
 
   return (
-    <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)] mt-8">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Map veto</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Phase: <span className="font-mono">{state?.phase ?? "NOT_STARTED"}</span>
-            {state?.turn && state.phase === "IN_PROGRESS" && (
-              <>
-                {" - Turn: "}
-                <span className="font-mono">{state.turn}</span>
-              </>
-            )}
-            {state?.finalMap && (
-              <>
-                {" - Final: "}
-                <span className="font-mono text-emerald-400">{state.finalMap}</span>
-              </>
-            )}
+          <p className="mt-1 text-xs text-slate-400">
+            {state?.phase === "IN_PROGRESS" && state.turn
+              ? `Turn: ${state.turn}`
+              : state?.phase === "DONE"
+                ? "Veto complete"
+                : "Waiting to start"}
           </p>
         </div>
         {state?.phase === "IN_PROGRESS" && (
@@ -132,8 +124,7 @@ export function MapVetoClient({
         ) : null}
       </div>
 
-      {/* Map grid with veto overlays */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {orderedMaps.map((mapId) => {
           const mapMeta = MAPS.find((m) => m.id === mapId);
           const vetoStarted = !!state && state.phase !== "NOT_STARTED";
@@ -160,20 +151,20 @@ export function MapVetoClient({
           return (
             <div
               key={mapId}
-              className={`relative rounded-lg overflow-hidden border ${
+              className={`relative overflow-hidden rounded-lg border bg-slate-900/60 transition-transform duration-150 ease-out ${
                 isFinal
                   ? "border-emerald-500"
                   : banInfo
                     ? "border-slate-800"
                     : "border-slate-700"
-              }`}
+              } ${canBan ? "hover:scale-[1.01]" : ""}`}
             >
               <button
                 type="button"
                 onClick={() => canBan && banMap(mapId)}
                 disabled={!canBan}
-                className={`block text-left w-full h-full ${
-                  canBan ? "hover:opacity-90" : ""
+                className={`block h-full w-full text-left transition-opacity ${
+                  canBan ? "hover:opacity-90 active:scale-[0.995]" : "opacity-90"
                 }`}
               >
                 <div className="h-24 bg-slate-800">
@@ -184,34 +175,33 @@ export function MapVetoClient({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="h-full w-full flex items-center justify-center text-xs text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
                       {mapId}
                     </div>
                   )}
                 </div>
-                <div className="p-2 text-center text-sm bg-slate-900">
+                <div className="bg-slate-950/70 p-2 text-center text-sm">
                   {mapMeta?.name ?? mapId}
                 </div>
               </button>
 
-              {/* Overlay */}
               {banInfo && (
-                <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center text-xs font-semibold text-slate-200">
+                <div className="ph-animate-in absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm text-xs font-semibold text-slate-200">
                   {banInfo.by} BAN
                 </div>
               )}
               {isFinal && !banInfo && (
-                <div className="absolute top-2 left-2 px-2 py-1 rounded bg-emerald-600 text-[11px] font-semibold text-emerald-50 shadow">
+                <div className="ph-animate-in absolute top-2 left-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-50 shadow">
                   Final map
                 </div>
               )}
               {!banInfo && !isFinal && !inPool && vetoStarted && (
-                <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center text-xs font-semibold text-slate-200">
+                <div className="ph-animate-in absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm text-xs font-semibold text-slate-200">
                   REMOVED
                 </div>
               )}
               {mapVotes.length > 0 && (
-                <div className="absolute top-2 left-2 flex -space-x-2">
+                <div className="ph-animate-in absolute top-2 left-2 flex -space-x-2">
                   {mapVotes.slice(0, 4).map((p) => (
                     <img
                       key={p.id}
@@ -222,14 +212,14 @@ export function MapVetoClient({
                     />
                   ))}
                   {mapVotes.length > 4 && (
-                    <div className="h-7 w-7 rounded-full bg-slate-900 border border-slate-700 text-[10px] text-slate-200 flex items-center justify-center">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] text-slate-200">
                       +{mapVotes.length - 4}
                     </div>
                   )}
                 </div>
               )}
               {canBan && (
-                <div className="absolute top-2 right-2 px-2 py-1 rounded bg-emerald-600 text-[11px] font-semibold text-emerald-50 shadow">
+                <div className="ph-animate-in absolute top-2 right-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-50 shadow">
                   Ban
                 </div>
               )}

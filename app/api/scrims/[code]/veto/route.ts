@@ -34,7 +34,7 @@ export async function POST(
     );
   }
 
-  if (scrim.status !== "STARTING") {
+  if (scrim.status !== "MAP_VETO") {
     return NextResponse.json(
       { error: "Veto is not in progress" },
       { status: 400 }
@@ -163,14 +163,14 @@ export async function POST(
   let newTurn: TeamSide | null = null;
   let phase: VetoPhase = "IN_PROGRESS";
   let finalMap: string | undefined;
-  let statusUpdate: "STARTING" | "IN_PROGRESS" = "STARTING";
+  let statusUpdate: "MAP_VETO" | "READY_TO_PLAY" = "MAP_VETO";
 
   // Finish only when one map remains (let both teams ban down to a single map)
   if (newPool.length <= 1) {
     phase = "DONE";
     newTurn = null;
     finalMap = newPool[0] ?? banChoice;
-    statusUpdate = "IN_PROGRESS";
+    statusUpdate = "READY_TO_PLAY";
   } else {
     // If exactly two maps remain, give the *other* team the final ban so they choose between the last two.
     if (newPool.length === 2) {
