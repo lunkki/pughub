@@ -18,7 +18,7 @@ export async function GET(
         let lastUpdated = Date.now();
 
         // Send initial message
-        controller.enqueue(encoder.encode(`data: connected\n\n`));
+        controller.enqueue(encoder.encode(`event: ping\ndata: connected\n\n`));
 
         // Poll DB periodically
         const pollInterval = setInterval(async () => {
@@ -49,7 +49,7 @@ export async function GET(
         // Heartbeat to keep the stream alive through proxies
         const heartbeatInterval = setInterval(() => {
           controller.enqueue(encoder.encode(`event: ping\ndata: keepalive\n\n`));
-        }, 15000);
+        }, 10000);
 
         // Stop when client disconnects
         req.signal.addEventListener("abort", () => {
@@ -61,9 +61,10 @@ export async function GET(
     }),
     {
       headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     }
   );

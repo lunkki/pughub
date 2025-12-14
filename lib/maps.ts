@@ -315,9 +315,9 @@ export const ACTIVE_DUTY = MAPS.filter((m) =>
     "de_inferno",
     "de_nuke",
     "de_overpass",
-    "de_vertigo",
     "de_ancient",
-    "de_anubis",
+    "de_dust2",
+    "de_train",
   ].includes(m.id)
 );
 

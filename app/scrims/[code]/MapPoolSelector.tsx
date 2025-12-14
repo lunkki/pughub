@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { MAPS, ACTIVE_DUTY } from "@/lib/maps";
+import { MAPS, ACTIVE_DUTY, type MapInfo } from "@/lib/maps";
 import { Button } from "@/app/components/ui/Button";
 
 export function MapPoolSelector({
@@ -15,45 +15,62 @@ export function MapPoolSelector({
 }) {
   const [open, setOpen] = useState(false);
   const [pool, setPool] = useState<string[]>(initialMapPool ?? []);
+  const poolRef = useRef<string[]>(initialMapPool ?? []);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeDutySet = useMemo(() => new Set(ACTIVE_DUTY.map((m) => m.id)), []);
 
   useEffect(() => {
     // Keep local state in sync with server updates (router.refresh preserves client state)
     // Don't clobber edits while the editor dropdown is open.
     if (canEdit && open) return;
-    setPool(initialMapPool ?? []);
+    const next = initialMapPool ?? [];
+    poolRef.current = next;
+    setPool(next);
   }, [initialMapPool, canEdit, open]);
 
   // Save to server
   async function savePool(updated: string[]) {
-    await fetch(`/api/scrims/${scrimCode}/mapPool`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mapPool: updated }),
-    });
+    try {
+      await fetch(`/api/scrims/${scrimCode}/mapPool`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mapPool: updated }),
+      });
+    } catch (err) {
+      console.error("Failed to save map pool", err);
+    }
   }
 
   // Toggle membership
   function toggleMap(id: string) {
     if (!canEdit) return;
-    setPool((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
+    setPool((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((m) => m !== id)
+        : [...prev, id];
+      poolRef.current = next;
+      return next;
+    });
   }
 
   // Helper selects
   function selectAll() {
     if (!canEdit) return;
-    setPool(MAPS.map((m) => m.id));
+    const next = MAPS.map((m) => m.id);
+    poolRef.current = next;
+    setPool(next);
   }
 
   function selectActiveDuty() {
     if (!canEdit) return;
-    setPool(ACTIVE_DUTY.map((m) => m.id));
+    const next = ACTIVE_DUTY.map((m) => m.id);
+    poolRef.current = next;
+    setPool(next);
   }
 
   function clearAll() {
     if (!canEdit) return;
+    poolRef.current = [];
     setPool([]);
   }
 
@@ -61,7 +78,7 @@ export function MapPoolSelector({
   function closeDropdown() {
     setOpen(false);
     if (canEdit) {
-      savePool(pool);
+      savePool(poolRef.current);
     }
   }
 
@@ -74,17 +91,46 @@ export function MapPoolSelector({
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [open, pool]);
+  }, [open]);
 
   const selectedCount = pool.length;
-  const displayedMaps = useMemo(() => {
-    return [...MAPS].sort((a, b) => {
-      const aSelected = pool.includes(a.id);
-      const bSelected = pool.includes(b.id);
-      if (aSelected !== bSelected) return aSelected ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-  }, [pool]);
+
+  const sections = useMemo(() => {
+    const isHostage = (m: MapInfo) => m.id.startsWith("cs_");
+    const isDefuse = (m: MapInfo) => m.id.startsWith("de_");
+
+    const activeDuty = MAPS.filter((m) => activeDutySet.has(m.id));
+    const stockDefuse = MAPS.filter(
+      (m) => m.type === "stock" && isDefuse(m) && !activeDutySet.has(m.id)
+    );
+    const stockHostage = MAPS.filter((m) => m.type === "stock" && isHostage(m));
+
+    const workshopDefuse = MAPS.filter(
+      (m) => m.type === "workshop" && isDefuse(m)
+    );
+    const workshopHostage = MAPS.filter(
+      (m) => m.type === "workshop" && isHostage(m)
+    );
+
+    const included = new Set<string>([
+      ...activeDuty.map((m) => m.id),
+      ...stockDefuse.map((m) => m.id),
+      ...stockHostage.map((m) => m.id),
+      ...workshopDefuse.map((m) => m.id),
+      ...workshopHostage.map((m) => m.id),
+    ]);
+
+    const other = MAPS.filter((m) => !included.has(m.id));
+
+    return [
+      { title: "Active Duty", maps: activeDuty },
+      { title: "Stock (Defuse)", maps: stockDefuse },
+      { title: "Stock (Hostage)", maps: stockHostage },
+      { title: "Workshop (Defuse)", maps: workshopDefuse },
+      { title: "Workshop (Hostage)", maps: workshopHostage },
+      ...(other.length ? [{ title: "Other", maps: other }] : []),
+    ].filter((s) => s.maps.length > 0);
+  }, [activeDutySet]);
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
@@ -96,7 +142,13 @@ export function MapPoolSelector({
           </p>
         </div>
         <Button
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            if (open) {
+              closeDropdown();
+            } else {
+              setOpen(true);
+            }
+          }}
           variant="outline"
           className="border-slate-700 text-slate-200 hover:bg-slate-800 active:scale-[0.98]"
         >
@@ -105,7 +157,7 @@ export function MapPoolSelector({
       </div>
 
       {open && (
-        <div className="ph-animate-in absolute z-50 mt-4 max-h-[520px] w-full overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/90 p-4 shadow-2xl shadow-sky-900/30 backdrop-blur">
+        <div className="ph-animate-in absolute z-50 mt-4 max-h-[75vh] w-full overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/90 p-4 shadow-2xl shadow-sky-900/30 backdrop-blur md:p-5">
           {canEdit ? (
             <div className="mb-4 flex flex-wrap gap-2">
               <Button
@@ -154,44 +206,66 @@ export function MapPoolSelector({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            {displayedMaps.map((m) => {
-              const isSelected = pool.includes(m.id);
-
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => toggleMap(m.id)}
-                  disabled={!canEdit}
-                  className={`group relative overflow-hidden rounded-lg border text-left transition-transform duration-150 ease-out ${
-                    canEdit ? "active:scale-[0.99]" : "cursor-default"
-                  } ${
-                    isSelected
-                      ? "border-emerald-500 bg-slate-900/60 ring-1 ring-emerald-500/30"
-                      : canEdit
-                        ? "border-slate-800 bg-slate-900/30 hover:border-sky-500/50 hover:bg-slate-900/50"
-                        : "border-slate-800 bg-slate-900/30 opacity-50"
-                  }`}
-                >
-                  <img
-                    src={m.image}
-                    alt={m.name}
-                    className={`h-24 w-full object-cover transition duration-200 ${
-                      isSelected ? "opacity-100" : "opacity-70 group-hover:opacity-100"
-                    }`}
-                  />
-                  <div className="bg-slate-950/70 p-2 text-center text-sm text-slate-200">
-                    {m.name}
+          <div className="space-y-5">
+            {sections.map((section) => (
+              <div key={section.title}>
+                <div className="mb-3 flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2">
+                  <div className="text-sm font-semibold text-slate-100">
+                    {section.title}
                   </div>
-                  {isSelected && (
-                    <div className="ph-animate-in absolute left-2 top-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-50 shadow">
-                      Selected
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+                  <div className="rounded-full border border-slate-700 px-3 py-0.5 text-[11px] text-slate-300">
+                    {section.maps.length}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                  {section.maps.map((m) => {
+                    const isSelected = pool.includes(m.id);
+
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => toggleMap(m.id)}
+                        disabled={!canEdit}
+                        className={`group relative overflow-hidden rounded-lg border text-left transition-transform duration-150 ease-out ${
+                          canEdit ? "active:scale-[0.99]" : "cursor-default"
+                        } ${
+                          isSelected
+                            ? "border-emerald-500 bg-slate-900/60 ring-1 ring-emerald-500/30"
+                            : canEdit
+                              ? "border-slate-800 bg-slate-900/30 hover:border-sky-500/50 hover:bg-slate-900/50"
+                              : "border-slate-800 bg-slate-900/30 opacity-50"
+                        }`}
+                      >
+                        <img
+                          src={m.image}
+                          alt={m.name}
+                          className={`h-28 w-full object-cover transition duration-200 md:h-32 ${
+                            isSelected
+                              ? "opacity-100"
+                              : "opacity-70 group-hover:opacity-100"
+                          }`}
+                        />
+                        <div className="bg-slate-950/70 p-2 text-center">
+                          <div className="text-sm font-semibold text-slate-100">
+                            {m.name}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-slate-400">
+                            {m.id}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div className="ph-animate-in absolute left-2 top-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-50 shadow">
+                            Selected
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
