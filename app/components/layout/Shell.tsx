@@ -23,9 +23,14 @@ export async function Shell({ children }: { children: React.ReactNode }) {
 
           <nav className="flex items-center gap-4 text-sm">
             {canStartScrim ? (
-              <Link href="/scrims/new" className="hover:text-sky-400">
-                Start scrim
-              </Link>
+              <>
+                <Link href="/scrims/new" className="hover:text-sky-400">
+                  Start scrim
+                </Link>
+                <Link href="/servers" className="hover:text-sky-400">
+                  Servers
+                </Link>
+              </>
             ) : null}
 
             {/* Auth UI */}

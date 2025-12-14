@@ -12,6 +12,7 @@ import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
+import { isScrimStarter } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -112,7 +113,11 @@ export default async function ScrimLobbyPage({
 
   const vetoState = parseVetoState(updatedScrim.vetoState);
   const isCreator = user.id === updatedScrim.creatorId;
+  const canManageServers = isCreator && isScrimStarter(user.steamId);
   const statusLabel = updatedScrim.status.replace(/_/g, " ");
+  const servers = canManageServers
+    ? await prisma.server.findMany({ orderBy: { name: "asc" } })
+    : [];
 
   const team1 = updatedScrim.players.filter((p) => p.team === "TEAM1");
   const team2 = updatedScrim.players.filter((p) => p.team === "TEAM2");
@@ -181,7 +186,16 @@ export default async function ScrimLobbyPage({
 
           {isCreator && (
             <div>
-              <ScrimCreatorControls scrim={updatedScrim} />
+              <ScrimCreatorControls
+                scrim={{
+                  code: updatedScrim.code,
+                  vetoMode: updatedScrim.vetoMode,
+                  status: updatedScrim.status,
+                  serverId: updatedScrim.serverId,
+                }}
+                servers={servers}
+                canManageServers={canManageServers}
+              />
             </div>
           )}
         </div>

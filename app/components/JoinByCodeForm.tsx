@@ -11,7 +11,7 @@ export function JoinByCodeForm({ className }: { className?: string }) {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = code.trim();
+    const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
     router.push(`/scrims/${trimmed}`);
   }
@@ -24,29 +24,28 @@ export function JoinByCodeForm({ className }: { className?: string }) {
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <label
-            htmlFor="scrim-code"
-            className="text-xs uppercase tracking-[0.2em] text-sky-300"
-          >
-            Join by code
-          </label>
-          <p className="mt-1 text-sm text-slate-300">
-            Drop into a lobby instantly. No invites, no friction.
-          </p>
-        </div>
-        <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300">
-          Live
-        </span>
-      </div>
+      <label
+        htmlFor="scrim-code"
+        className="text-xs uppercase tracking-[0.2em] text-sky-300"
+      >
+        Join by code
+      </label>
 
       <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center">
         <input
           id="scrim-code"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="e.g. dusk-fox"
+          onChange={(e) =>
+            setCode(
+              e.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "")
+            )
+          }
+          placeholder="e.g. 7QICHR"
+          inputMode="text"
+          autoComplete="off"
+          spellCheck={false}
           className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-4 py-3 text-base text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
         />
         <Button

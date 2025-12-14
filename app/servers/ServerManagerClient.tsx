@@ -134,29 +134,29 @@ export function ServerManagerClient({ initialServers }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 shadow-md shadow-sky-900/10">
         <h2 className="text-lg font-semibold mb-3">Add server</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input
-            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
             placeholder="Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <input
-            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
             placeholder="Address (host:port)"
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
           <input
-            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
             placeholder="RCON address (host:port) optional"
             value={form.rconAddress}
             onChange={(e) => setForm({ ...form, rconAddress: e.target.value })}
           />
           <input
-            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
             placeholder="RCON password"
             value={form.rconPassword}
             onChange={(e) => setForm({ ...form, rconPassword: e.target.value })}
@@ -173,14 +173,14 @@ export function ServerManagerClient({ initialServers }: Props) {
         <button
           onClick={createServer}
           disabled={creating}
-          className="mt-3 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-sm"
+          className="mt-3 rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-50 hover:bg-emerald-700 disabled:opacity-40"
         >
           {creating ? "Creating..." : "Create server"}
         </button>
         {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
       </div>
 
-      <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 shadow-md shadow-sky-900/10">
         <h2 className="text-lg font-semibold mb-3">Existing servers</h2>
         {servers.length === 0 && (
           <p className="text-sm text-slate-400">No servers yet.</p>
@@ -189,11 +189,11 @@ export function ServerManagerClient({ initialServers }: Props) {
           {servers.map((server) => (
             <div
               key={server.id}
-              className="rounded-lg border border-slate-700 p-3 bg-slate-900/60"
+              className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input
-                  className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+                  className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 focus:border-sky-400 focus:outline-none"
                   value={server.name}
                   onChange={(e) =>
                     setServers((prev) =>
@@ -207,7 +207,7 @@ export function ServerManagerClient({ initialServers }: Props) {
                   }
                 />
                 <input
-                  className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+                  className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 focus:border-sky-400 focus:outline-none"
                   value={server.address}
                   onChange={(e) =>
                     setServers((prev) =>
@@ -223,7 +223,7 @@ export function ServerManagerClient({ initialServers }: Props) {
                   }
                 />
                 <input
-                  className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+                  className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
                   value={server.rconAddress ?? ""}
                   onChange={(e) =>
                     setServers((prev) =>
@@ -240,7 +240,7 @@ export function ServerManagerClient({ initialServers }: Props) {
                   placeholder="RCON address (optional)"
                 />
                 <input
-                  className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+                  className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 focus:border-sky-400 focus:outline-none"
                   value={server.rconPassword}
                   onChange={(e) =>
                     setServers((prev) =>
@@ -286,11 +286,11 @@ export function ServerManagerClient({ initialServers }: Props) {
         </div>
       </div>
 
-      <div className="border border-slate-700 rounded-lg p-4 bg-[color:var(--panel-bg)]">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 shadow-md shadow-sky-900/10">
         <h2 className="text-lg font-semibold mb-3">RCON console</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <select
-            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 focus:border-sky-400 focus:outline-none"
             value={rconServerId}
             onChange={(e) => setRconServerId(e.target.value)}
           >
@@ -301,14 +301,14 @@ export function ServerManagerClient({ initialServers }: Props) {
             ))}
           </select>
           <input
-            className="px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
             placeholder="Override RCON address (optional)"
             value={rconAddressOverride}
             onChange={(e) => setRconAddressOverride(e.target.value)}
           />
         </div>
         <textarea
-          className="mt-3 w-full px-3 py-2 rounded bg-slate-900 border border-slate-700 text-sm"
+          className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
           rows={3}
           placeholder="rcon command, e.g. status"
           value={rconCommand}
@@ -318,7 +318,7 @@ export function ServerManagerClient({ initialServers }: Props) {
           <button
             onClick={runRcon}
             disabled={rconBusy}
-            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-sm"
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-50 hover:bg-emerald-700 disabled:opacity-40"
           >
             {rconBusy ? "Sending..." : "Send RCON"}
           </button>
