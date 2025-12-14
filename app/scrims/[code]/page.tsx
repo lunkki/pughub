@@ -116,7 +116,10 @@ export default async function ScrimLobbyPage({
   const canManageServers = isCreator && isScrimStarter(user.steamId);
   const statusLabel = updatedScrim.status.replace(/_/g, " ");
   const servers = canManageServers
-    ? await prisma.server.findMany({ orderBy: { name: "asc" } })
+    ? await prisma.server.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, address: true, isActive: true },
+      })
     : [];
 
   const team1 = updatedScrim.players.filter((p) => p.team === "TEAM1");

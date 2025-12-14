@@ -38,6 +38,7 @@ export default async function ServersPage() {
 
   const servers = await prisma.server.findMany({
     orderBy: { name: "asc" },
+    select: { id: true, name: true, address: true, rconAddress: true, isActive: true },
   });
 
   return (

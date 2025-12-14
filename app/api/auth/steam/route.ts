@@ -15,6 +15,45 @@ function buildQuery(params: Record<string, string>) {
   return new URLSearchParams(params).toString();
 }
 
+function normalizeRedirectPath(raw: string | null): string {
+  if (!raw) return "/";
+  // Only allow same-origin relative paths
+  if (!raw.startsWith("/")) return "/";
+  if (raw.startsWith("//")) return "/";
+  return raw;
+}
+
+function getSteamIdFromClaimedId(claimedId: string): string | null {
+  const prefix = "https://steamcommunity.com/openid/id/";
+  if (!claimedId.startsWith(prefix)) return null;
+  const steamId = claimedId.slice(prefix.length);
+  // SteamID64 is a 17-digit number
+  if (!/^\d{17}$/.test(steamId)) return null;
+  return steamId;
+}
+
+async function verifySteamOpenIdCallback(url: URL): Promise<boolean> {
+  // Steam OpenID requires verifying the callback parameters via check_authentication.
+  const params = new URLSearchParams();
+  for (const [key, value] of url.searchParams.entries()) {
+    if (key.startsWith("openid.")) {
+      params.set(key, value);
+    }
+  }
+  params.set("openid.mode", "check_authentication");
+
+  const res = await fetch(STEAM_OPENID_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  if (!res.ok) return false;
+  const text = await res.text();
+  // Response is newline-separated key:value pairs
+  return /\bis_valid\s*:\s*true\b/.test(text);
+}
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
@@ -27,14 +66,26 @@ export async function GET(req: NextRequest) {
     `${realm}/api/auth/steam`
   );
 
-  const redirectBack =
-    url.searchParams.get("redirect") || "/"; // default home
+  const redirectBack = normalizeRedirectPath(url.searchParams.get("redirect"));
 
   // --- Step 2: Handle callback from Steam ---
   if (url.searchParams.has("openid.claimed_id")) {
-    const steamId = url.searchParams
-      .get("openid.claimed_id")!
-      .replace("https://steamcommunity.com/openid/id/", "");
+    const verified = await verifySteamOpenIdCallback(url);
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Steam OpenID verification failed" },
+        { status: 401 }
+      );
+    }
+
+    const claimedId = url.searchParams.get("openid.claimed_id")!;
+    const steamId = getSteamIdFromClaimedId(claimedId);
+    if (!steamId) {
+      return NextResponse.json(
+        { error: "Invalid Steam claimed_id" },
+        { status: 400 }
+      );
+    }
 
     const profile = await getSteamProfile(steamId);
 
@@ -42,12 +93,12 @@ export async function GET(req: NextRequest) {
     const user = await prisma.user.upsert({
       where: { steamId },
       update: {
-        displayName: profile?.name ?? "",
+        ...(profile?.name ? { displayName: profile.name } : {}),
         avatarUrl: profile?.avatar ?? null,
       },
       create: {
         steamId,
-        displayName: profile?.name ?? "",
+        displayName: profile?.name ?? steamId,
         avatarUrl: profile?.avatar ?? null,
       },
     });
@@ -64,6 +115,7 @@ export async function GET(req: NextRequest) {
       value: token,
       httpOnly: true,
       secure: realm.startsWith("https://"),
+      sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });

@@ -3,6 +3,14 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isScrimStarter } from "@/lib/permissions";
 
+const serverSelect = {
+  id: true,
+  name: true,
+  address: true,
+  rconAddress: true,
+  isActive: true,
+} as const;
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -12,6 +20,7 @@ export async function GET() {
 
   const servers = await prisma.server.findMany({
     orderBy: { name: "asc" },
+    select: serverSelect,
   });
 
   return NextResponse.json({ servers });
@@ -40,7 +49,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const server = await prisma.server.create({
+  const created = await prisma.server.create({
     data: {
       name,
       address,
@@ -48,6 +57,11 @@ export async function POST(req: NextRequest) {
       rconPassword,
       isActive,
     },
+  });
+
+  const server = await prisma.server.findUnique({
+    where: { id: created.id },
+    select: serverSelect,
   });
 
   return NextResponse.json({ server });

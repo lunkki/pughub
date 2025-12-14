@@ -3,6 +3,14 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isScrimStarter } from "@/lib/permissions";
 
+const serverSelect = {
+  id: true,
+  name: true,
+  address: true,
+  rconAddress: true,
+  isActive: true,
+} as const;
+
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -30,9 +38,14 @@ export async function PATCH(
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
-  const server = await prisma.server.update({
+  await prisma.server.update({
     where: { id },
     data,
+  });
+
+  const server = await prisma.server.findUnique({
+    where: { id },
+    select: serverSelect,
   });
 
   return NextResponse.json({ server });

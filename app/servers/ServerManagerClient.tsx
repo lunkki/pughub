@@ -8,9 +8,10 @@ type Server = {
   name: string;
   address: string;
   rconAddress?: string | null;
-  rconPassword: string;
   isActive: boolean;
 };
+
+type ServerPatch = Partial<Server> & { rconPassword?: string };
 
 type Props = {
   initialServers: Server[];
@@ -27,6 +28,9 @@ export function ServerManagerClient({ initialServers }: Props) {
   const [rconCommand, setRconCommand] = useState("");
   const [rconBusy, setRconBusy] = useState(false);
   const [rconResult, setRconResult] = useState<string | null>(null);
+  const [rconPasswordDrafts, setRconPasswordDrafts] = useState<
+    Record<string, string>
+  >({});
 
   const [form, setForm] = useState({
     name: "",
@@ -50,7 +54,7 @@ export function ServerManagerClient({ initialServers }: Props) {
         setError(data.error ?? "Failed to create server");
         return;
       }
-      setServers((prev) => [...prev, data.server]);
+      if (data.server) setServers((prev) => [...prev, data.server]);
       setForm({
         name: "",
         address: "",
@@ -65,7 +69,7 @@ export function ServerManagerClient({ initialServers }: Props) {
     }
   }
 
-  async function updateServer(id: string, patch: Partial<Server>) {
+  async function updateServer(id: string, patch: ServerPatch) {
     setError(null);
     try {
       const res = await fetch(`/api/servers/${id}`, {
@@ -241,19 +245,20 @@ export function ServerManagerClient({ initialServers }: Props) {
                 />
                 <input
                   className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-slate-50 focus:border-sky-400 focus:outline-none"
-                  value={server.rconPassword}
+                  value={rconPasswordDrafts[server.id] ?? ""}
                   onChange={(e) =>
-                    setServers((prev) =>
-                      prev.map((s) =>
-                        s.id === server.id
-                          ? { ...s, rconPassword: e.target.value }
-                          : s
-                      )
-                    )
+                    setRconPasswordDrafts((prev) => ({
+                      ...prev,
+                      [server.id]: e.target.value,
+                    }))
                   }
-                  onBlur={(e) =>
-                    updateServer(server.id, { rconPassword: e.target.value })
-                  }
+                  onBlur={(e) => {
+                    const next = e.target.value.trim();
+                    if (!next) return;
+                    updateServer(server.id, { rconPassword: next });
+                    setRconPasswordDrafts((prev) => ({ ...prev, [server.id]: "" }));
+                  }}
+                  placeholder="Set new RCON password"
                 />
                 <label className="flex items-center gap-2 text-sm text-slate-200">
                   <input
