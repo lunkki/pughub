@@ -67,21 +67,6 @@ export default async function HomePage() {
                 </Button>
               )}
             </div>
-
-            <div className="flex flex-wrap gap-5 text-sm text-slate-400">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-sky-400" />
-                Live updates
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Map veto
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                Server connect string
-              </span>
-            </div>
           </div>
 
           <div className="flex-1">
@@ -92,7 +77,7 @@ export default async function HomePage() {
 
       <section className="grid gap-3 md:grid-cols-3">
         {[
-          { title: "Create", body: "Start a lobby (if you're cleared)." },
+          { title: "Create", body: "Start a lobby." },
           { title: "Share", body: "Send the code to players." },
           { title: "Play", body: "Pick teams, veto maps, connect." },
         ].map((item) => (
