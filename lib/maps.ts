@@ -250,12 +250,28 @@ export const MAPS: MapInfo[] = [
     command: "host_workshop_map 3070284539",
   },
   {
+    id: "de_tuscan_d",
+    name: "Tuscan",
+    image: `${IMG}/de_tuscan_d.jpg`,
+    type: "workshop",
+    workshopId: "3267671493",
+    command: "host_workshop_map 3267671493",
+  },
+  {
     id: "de_mills",
     name: "Mills",
     image: `${IMG}/de_mills.jpg`,
     type: "workshop",
     workshopId: "3152430710",
     command: "host_workshop_map 3152430710",
+  },
+  {
+    id: "de_piranesi",
+    name: "Piranesi",
+    image: `${IMG}/de_piranesi.jpg`,
+    type: "workshop",
+    workshopId: "3072451578",
+    command: "host_workshop_map 3072451578",
   },
   {
     id: "de_thera",
