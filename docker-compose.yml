@@ -16,6 +16,12 @@ services:
       - DEFAULT_SERVER_RCON_PASSWORD=${DEFAULT_SERVER_RCON_PASSWORD:-change-me-rcon}
       - DEFAULT_SERVER_PASSWORD=${DEFAULT_SERVER_PASSWORD:-secret-password-here}
       - SCRIM_START_STEAM_IDS=${SCRIM_START_STEAM_IDS:-}
+      - MATCHZY_DB_URL=${MATCHZY_DB_URL:-}
+      - MATCHZY_DB_HOST=${MATCHZY_DB_HOST:-}
+      - MATCHZY_DB_PORT=${MATCHZY_DB_PORT:-}
+      - MATCHZY_DB_NAME=${MATCHZY_DB_NAME:-}
+      - MATCHZY_DB_USER=${MATCHZY_DB_USER:-}
+      - MATCHZY_DB_PASSWORD=${MATCHZY_DB_PASSWORD:-}
     command: ["sh", "-c", "npx prisma migrate deploy && npm run start"]
     ports:
       - "3000:3000"

@@ -273,6 +273,15 @@ export const MAPS: MapInfo[] = [
     workshopId: "3072451578",
     command: "host_workshop_map 3072451578",
   },
+    {
+    id: "de_prodigy",
+    name: "Prodigy",
+    image: `${IMG}/de_prodigy.jpg`,
+    type: "workshop",
+    workshopId: "3101490275",
+    command: "host_workshop_map 3101490275",
+  },
+
   {
     id: "de_thera",
     name: "Thera",
