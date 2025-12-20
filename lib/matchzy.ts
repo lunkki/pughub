@@ -19,12 +19,35 @@ export type MatchPlayerStats = {
   deaths: number;
   assists: number;
   damage: number;
+  enemy5ks: number;
+  enemy4ks: number;
+  enemy3ks: number;
+  enemy2ks: number;
+  utilityCount: number;
   headshotKills: number;
   utilityDamage: number;
+  utilitySuccesses: number;
+  utilityEnemies: number;
+  flashCount: number;
+  flashSuccesses: number;
+  healthPointsRemovedTotal: number;
+  healthPointsDealtTotal: number;
+  shotsFiredTotal: number;
+  shotsOnTargetTotal: number;
   entryCount: number;
   entryWins: number;
   clutchCount: number;
   clutchWins: number;
+  v1Count: number;
+  v1Wins: number;
+  v2Count: number;
+  v2Wins: number;
+  equipmentValue: number;
+  moneySaved: number;
+  killReward: number;
+  liveTime: number;
+  cashEarned: number;
+  enemiesFlashed: number;
 };
 
 export type MatchStats = {
@@ -75,12 +98,35 @@ type PlayerRow = RowDataPacket & {
   deaths: number;
   assists: number;
   damage: number;
+  enemy5ks: number;
+  enemy4ks: number;
+  enemy3ks: number;
+  enemy2ks: number;
+  utility_count: number;
   head_shot_kills: number;
   utility_damage: number;
+  utility_successes: number;
+  utility_enemies: number;
+  flash_count: number;
+  flash_successes: number;
+  health_points_removed_total: number;
+  health_points_dealt_total: number;
+  shots_fired_total: number;
+  shots_on_target_total: number;
   entry_count: number;
   entry_wins: number;
   clutch_count: number;
   clutch_wins: number;
+  v1_count: number;
+  v1_wins: number;
+  v2_count: number;
+  v2_wins: number;
+  equipment_value: number;
+  money_saved: number;
+  kill_reward: number;
+  live_time: number;
+  cash_earned: number;
+  enemies_flashed: number;
 };
 
 type MatchzyConfig =
@@ -168,48 +214,12 @@ function toString(value: string | number | null) {
   return String(value);
 }
 
-export async function fetchMatchStats(limit = 25): Promise<MatchStats[]> {
-  const db = getMatchzyPool();
-  const [matches] = await db.query<MatchRow[]>(
-    `SELECT matchid, start_time, end_time, winner, series_type, team1_name, team2_name,
-            team1_score, team2_score, server_ip
-     FROM matchzy_stats_matches
-     ORDER BY matchid DESC
-     LIMIT ?`,
-    [limit]
-  );
-
+function buildMatchStats(
+  matches: MatchRow[],
+  maps: MapRow[],
+  players: PlayerRow[]
+): MatchStats[] {
   if (!matches.length) return [];
-
-  const matchIds = matches.map((row) => row.matchid);
-  const placeholders = matchIds.map(() => "?").join(",");
-
-  const [maps] = await db.query<MapRow[]>(
-    `SELECT matchid, mapnumber, mapname, winner, start_time, end_time, team1_score, team2_score
-     FROM matchzy_stats_maps
-     WHERE matchid IN (${placeholders})
-     ORDER BY matchid DESC, mapnumber ASC`,
-    matchIds
-  );
-
-  const [players] = await db.query<PlayerRow[]>(
-    `SELECT matchid, steamid64, team, name,
-            SUM(kills) AS kills,
-            SUM(deaths) AS deaths,
-            SUM(assists) AS assists,
-            SUM(damage) AS damage,
-            SUM(head_shot_kills) AS head_shot_kills,
-            SUM(utility_damage) AS utility_damage,
-            SUM(entry_count) AS entry_count,
-            SUM(entry_wins) AS entry_wins,
-            SUM(v1_count + v2_count) AS clutch_count,
-            SUM(v1_wins + v2_wins) AS clutch_wins
-     FROM matchzy_stats_players
-     WHERE matchid IN (${placeholders})
-     GROUP BY matchid, steamid64, team, name
-     ORDER BY matchid DESC, kills DESC`,
-    matchIds
-  );
 
   const mapsByMatch = new Map<number, MatchMapStats[]>();
   for (const row of maps) {
@@ -241,12 +251,35 @@ export async function fetchMatchStats(limit = 25): Promise<MatchStats[]> {
       deaths: toNumber(row.deaths),
       assists: toNumber(row.assists),
       damage: toNumber(row.damage),
+      enemy5ks: toNumber(row.enemy5ks),
+      enemy4ks: toNumber(row.enemy4ks),
+      enemy3ks: toNumber(row.enemy3ks),
+      enemy2ks: toNumber(row.enemy2ks),
+      utilityCount: toNumber(row.utility_count),
       headshotKills: toNumber(row.head_shot_kills),
       utilityDamage: toNumber(row.utility_damage),
+      utilitySuccesses: toNumber(row.utility_successes),
+      utilityEnemies: toNumber(row.utility_enemies),
+      flashCount: toNumber(row.flash_count),
+      flashSuccesses: toNumber(row.flash_successes),
+      healthPointsRemovedTotal: toNumber(row.health_points_removed_total),
+      healthPointsDealtTotal: toNumber(row.health_points_dealt_total),
+      shotsFiredTotal: toNumber(row.shots_fired_total),
+      shotsOnTargetTotal: toNumber(row.shots_on_target_total),
       entryCount: toNumber(row.entry_count),
       entryWins: toNumber(row.entry_wins),
       clutchCount: toNumber(row.clutch_count),
       clutchWins: toNumber(row.clutch_wins),
+      v1Count: toNumber(row.v1_count),
+      v1Wins: toNumber(row.v1_wins),
+      v2Count: toNumber(row.v2_count),
+      v2Wins: toNumber(row.v2_wins),
+      equipmentValue: toNumber(row.equipment_value),
+      moneySaved: toNumber(row.money_saved),
+      killReward: toNumber(row.kill_reward),
+      liveTime: toNumber(row.live_time),
+      cashEarned: toNumber(row.cash_earned),
+      enemiesFlashed: toNumber(row.enemies_flashed),
     };
 
     if (!playersByMatch.has(matchId)) {
@@ -269,4 +302,142 @@ export async function fetchMatchStats(limit = 25): Promise<MatchStats[]> {
     maps: mapsByMatch.get(toNumber(row.matchid)) ?? [],
     players: playersByMatch.get(toNumber(row.matchid)) ?? [],
   }));
+}
+
+export async function fetchMatchStats(limit = 25): Promise<MatchStats[]> {
+  const db = getMatchzyPool();
+  const [matches] = await db.query<MatchRow[]>(
+    `SELECT matchid, start_time, end_time, winner, series_type, team1_name, team2_name,
+            team1_score, team2_score, server_ip
+     FROM matchzy_stats_matches
+     ORDER BY matchid DESC
+     LIMIT ?`,
+    [limit]
+  );
+
+  if (!matches.length) return [];
+
+  const matchIds = matches.map((row) => row.matchid);
+  const placeholders = matchIds.map(() => "?").join(",");
+
+  const [maps] = await db.query<MapRow[]>(
+    `SELECT matchid, mapnumber, mapname, winner, start_time, end_time, team1_score, team2_score
+     FROM matchzy_stats_maps
+     WHERE matchid IN (${placeholders})
+     ORDER BY matchid DESC, mapnumber ASC`,
+    matchIds
+  );
+
+  const [players] = await db.query<PlayerRow[]>(
+    `SELECT matchid, steamid64, team, name,
+            SUM(kills) AS kills,
+            SUM(deaths) AS deaths,
+            SUM(assists) AS assists,
+            SUM(damage) AS damage,
+            SUM(enemy5ks) AS enemy5ks,
+            SUM(enemy4ks) AS enemy4ks,
+            SUM(enemy3ks) AS enemy3ks,
+            SUM(enemy2ks) AS enemy2ks,
+            SUM(utility_count) AS utility_count,
+            SUM(head_shot_kills) AS head_shot_kills,
+            SUM(utility_damage) AS utility_damage,
+            SUM(utility_successes) AS utility_successes,
+            SUM(utility_enemies) AS utility_enemies,
+            SUM(flash_count) AS flash_count,
+            SUM(flash_successes) AS flash_successes,
+            SUM(health_points_removed_total) AS health_points_removed_total,
+            SUM(health_points_dealt_total) AS health_points_dealt_total,
+            SUM(shots_fired_total) AS shots_fired_total,
+            SUM(shots_on_target_total) AS shots_on_target_total,
+            SUM(entry_count) AS entry_count,
+            SUM(entry_wins) AS entry_wins,
+            SUM(v1_count) AS v1_count,
+            SUM(v1_wins) AS v1_wins,
+            SUM(v2_count) AS v2_count,
+            SUM(v2_wins) AS v2_wins,
+            SUM(v1_count + v2_count) AS clutch_count,
+            SUM(v1_wins + v2_wins) AS clutch_wins,
+            SUM(equipment_value) AS equipment_value,
+            SUM(money_saved) AS money_saved,
+            SUM(kill_reward) AS kill_reward,
+            SUM(live_time) AS live_time,
+            SUM(cash_earned) AS cash_earned,
+            SUM(enemies_flashed) AS enemies_flashed
+     FROM matchzy_stats_players
+     WHERE matchid IN (${placeholders})
+     GROUP BY matchid, steamid64, team, name
+     ORDER BY matchid DESC, kills DESC`,
+    matchIds
+  );
+
+  return buildMatchStats(matches, maps, players);
+}
+
+export async function fetchMatchStatsById(
+  matchId: number
+): Promise<MatchStats | null> {
+  const db = getMatchzyPool();
+  const [matches] = await db.query<MatchRow[]>(
+    `SELECT matchid, start_time, end_time, winner, series_type, team1_name, team2_name,
+            team1_score, team2_score, server_ip
+     FROM matchzy_stats_matches
+     WHERE matchid = ?
+     LIMIT 1`,
+    [matchId]
+  );
+
+  if (!matches.length) return null;
+
+  const [maps] = await db.query<MapRow[]>(
+    `SELECT matchid, mapnumber, mapname, winner, start_time, end_time, team1_score, team2_score
+     FROM matchzy_stats_maps
+     WHERE matchid = ?
+     ORDER BY mapnumber ASC`,
+    [matchId]
+  );
+
+  const [players] = await db.query<PlayerRow[]>(
+    `SELECT matchid, steamid64, team, name,
+            SUM(kills) AS kills,
+            SUM(deaths) AS deaths,
+            SUM(assists) AS assists,
+            SUM(damage) AS damage,
+            SUM(enemy5ks) AS enemy5ks,
+            SUM(enemy4ks) AS enemy4ks,
+            SUM(enemy3ks) AS enemy3ks,
+            SUM(enemy2ks) AS enemy2ks,
+            SUM(utility_count) AS utility_count,
+            SUM(head_shot_kills) AS head_shot_kills,
+            SUM(utility_damage) AS utility_damage,
+            SUM(utility_successes) AS utility_successes,
+            SUM(utility_enemies) AS utility_enemies,
+            SUM(flash_count) AS flash_count,
+            SUM(flash_successes) AS flash_successes,
+            SUM(health_points_removed_total) AS health_points_removed_total,
+            SUM(health_points_dealt_total) AS health_points_dealt_total,
+            SUM(shots_fired_total) AS shots_fired_total,
+            SUM(shots_on_target_total) AS shots_on_target_total,
+            SUM(entry_count) AS entry_count,
+            SUM(entry_wins) AS entry_wins,
+            SUM(v1_count) AS v1_count,
+            SUM(v1_wins) AS v1_wins,
+            SUM(v2_count) AS v2_count,
+            SUM(v2_wins) AS v2_wins,
+            SUM(v1_count + v2_count) AS clutch_count,
+            SUM(v1_wins + v2_wins) AS clutch_wins,
+            SUM(equipment_value) AS equipment_value,
+            SUM(money_saved) AS money_saved,
+            SUM(kill_reward) AS kill_reward,
+            SUM(live_time) AS live_time,
+            SUM(cash_earned) AS cash_earned,
+            SUM(enemies_flashed) AS enemies_flashed
+     FROM matchzy_stats_players
+     WHERE matchid = ?
+     GROUP BY matchid, steamid64, team, name
+     ORDER BY kills DESC`,
+    [matchId]
+  );
+
+  const stats = buildMatchStats(matches, maps, players);
+  return stats[0] ?? null;
 }

@@ -146,9 +146,9 @@ export const MAPS: MapInfo[] = [
     command: "host_workshop_map 3071005299",
   },
   {
-    id: "de_cbble",
+    id: "de_cbble_d",
     name: "Cobblestone",
-    image: `${IMG}/de_cbble.jpg`,
+    image: `${IMG}/de_cbble_d.jpg`,
     type: "workshop",
     workshopId: "3329387648",
     command: "host_workshop_map 3329387648",
@@ -274,9 +274,9 @@ export const MAPS: MapInfo[] = [
     command: "host_workshop_map 3072451578",
   },
     {
-    id: "de_prodigy",
+    id: "de_prodigy_ported",
     name: "Prodigy",
-    image: `${IMG}/de_prodigy.jpg`,
+    image: `${IMG}/de_prodigy_ported.jpg`,
     type: "workshop",
     workshopId: "3101490275",
     command: "host_workshop_map 3101490275",

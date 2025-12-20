@@ -22,9 +22,11 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/stats" className="hover:text-sky-400">
-              Stats
-            </Link>
+            {user ? (
+              <Link href="/stats" className="hover:text-sky-400">
+                Stats
+              </Link>
+            ) : null}
             {canStartScrim ? (
               <>
                 <Link href="/scrims/new" className="hover:text-sky-400">
