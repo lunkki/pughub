@@ -211,7 +211,7 @@ export default async function StatsPage() {
                       {team1Name} vs {team2Name}
                     </h2>
                     <p className="mt-2 text-sm text-slate-300">
-                      {formatDate(match.startTime)} &rarr; {formatDate(match.endTime)} |{" "}
+                      {formatDate(match.startTime)} to {formatDate(match.endTime)} |{" "}
                       {formatSeriesType(match.seriesType)} |{" "}
                       {formatDuration(match.startTime, match.endTime)}
                     </p>
@@ -299,7 +299,7 @@ export default async function StatsPage() {
                       No player stats recorded.
                     </div>
                   ) : (
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid gap-4">
                       {[
                         {
                           label: "Team 1",
