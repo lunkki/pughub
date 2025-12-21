@@ -13,6 +13,57 @@ import { ScrimControls } from "./ScrimControls";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
 import { isScrimStarter } from "@/lib/permissions";
+import { fetchRecentPlayerMatchSummaries, hasMatchzyConfig } from "@/lib/matchzy";
+import { getRating } from "@/lib/matchStatsFormat";
+
+type RatingMatchSummary = {
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  clutchWins: number;
+};
+
+function buildRatingPlayer(steamId64: string, match: RatingMatchSummary) {
+  return {
+    steamId64,
+    team: "",
+    name: "",
+    kills: match.kills,
+    deaths: match.deaths,
+    assists: match.assists,
+    damage: match.damage,
+    enemy5ks: 0,
+    enemy4ks: 0,
+    enemy3ks: 0,
+    enemy2ks: 0,
+    utilityCount: 0,
+    headshotKills: 0,
+    utilityDamage: 0,
+    utilitySuccesses: 0,
+    utilityEnemies: 0,
+    flashCount: 0,
+    flashSuccesses: 0,
+    healthPointsRemovedTotal: 0,
+    healthPointsDealtTotal: 0,
+    shotsFiredTotal: 0,
+    shotsOnTargetTotal: 0,
+    entryCount: 0,
+    entryWins: 0,
+    clutchCount: 0,
+    clutchWins: match.clutchWins,
+    v1Count: 0,
+    v1Wins: 0,
+    v2Count: 0,
+    v2Wins: 0,
+    equipmentValue: 0,
+    moneySaved: 0,
+    killReward: 0,
+    liveTime: 0,
+    cashEarned: 0,
+    enemiesFlashed: 0,
+  };
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -133,6 +184,53 @@ export default async function ScrimLobbyPage({
   const captain2UserId = team2.find((p) => p.isCaptain)?.userId;
   const isCaptain = user.id === captain1UserId || user.id === captain2UserId;
 
+  const averageRatings = new Map<string, number>();
+  if (hasMatchzyConfig()) {
+    try {
+      const steamIds = Array.from(
+        new Set(
+          updatedScrim.players
+            .map((player) => player.steamId)
+            .filter((steamId): steamId is string => Boolean(steamId))
+        )
+      );
+
+      if (steamIds.length > 0) {
+        const ratingEntries = await Promise.all(
+          steamIds.map(async (steamId) => {
+            const matches = await fetchRecentPlayerMatchSummaries(steamId, 5);
+            const ratings = matches
+              .map((match) =>
+                getRating(buildRatingPlayer(steamId, match), match.rounds)
+              )
+              .filter((rating): rating is number => rating !== null);
+
+            if (ratings.length === 0) return null;
+
+            const average =
+              ratings.reduce((sum, rating) => sum + rating, 0) /
+              ratings.length;
+            return { steamId, average };
+          })
+        );
+
+        for (const entry of ratingEntries) {
+          if (entry) {
+            averageRatings.set(entry.steamId, entry.average);
+          }
+        }
+      }
+    } catch {
+      // ignore match stats failures to keep the lobby usable
+    }
+  }
+
+  const averageRatingLabel = (steamId: string) => {
+    const average = averageRatings.get(steamId);
+    if (average === undefined) return null;
+    return average.toFixed(2);
+  };
+
   return (
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
       <SseListener code={updatedScrim.code} />
@@ -205,7 +303,7 @@ export default async function ScrimLobbyPage({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Team 1</h2>
+                <h2 className="text-lg font-semibold">Team 1 ({team1.length})</h2>
                 {canChangeTeams && currentUserTeam !== "TEAM1" && (
                   <TeamMoveButton
                     scrimCode={updatedScrim.code}
@@ -221,34 +319,42 @@ export default async function ScrimLobbyPage({
                 <p className="text-sm text-slate-400">No players yet.</p>
               )}
 
-              {team1.map((player) => (
-                <div
-                  key={player.id}
-                  className="mb-2 flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={player.user.avatarUrl ?? ""}
-                      className="h-8 w-8 rounded-full border border-slate-600"
-                    />
-                    <span>{player.user.displayName}</span>
-                    {player.isCaptain && (
-                      <span className="text-xs text-yellow-400">(C)</span>
+              {team1.map((player) => {
+                const ratingLabel = averageRatingLabel(player.steamId);
+                return (
+                  <div
+                    key={player.id}
+                    className="mb-2 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={player.user.avatarUrl ?? ""}
+                        className="h-8 w-8 rounded-full border border-slate-600"
+                      />
+                      <span>{player.user.displayName}</span>
+                      {ratingLabel && (
+                        <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
+                          (~{ratingLabel})
+                        </span>
+                      )}
+                      {player.isCaptain && (
+                        <span className="text-xs text-yellow-400">(C)</span>
+                      )}
+                    </div>
+                    {isCreator && player.userId !== user.id && (
+                      <KickButton
+                        scrimCode={updatedScrim.code}
+                        targetUserId={player.userId}
+                      />
                     )}
                   </div>
-                  {isCreator && player.userId !== user.id && (
-                    <KickButton
-                      scrimCode={updatedScrim.code}
-                      targetUserId={player.userId}
-                    />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Team 2</h2>
+                <h2 className="text-lg font-semibold">Team 2 ({team2.length})</h2>
                 {canChangeTeams && currentUserTeam !== "TEAM2" && (
                   <TeamMoveButton
                     scrimCode={updatedScrim.code}
@@ -264,35 +370,45 @@ export default async function ScrimLobbyPage({
                 <p className="text-sm text-slate-400">No players yet.</p>
               )}
 
-              {team2.map((player) => (
-                <div
-                  key={player.id}
-                  className="mb-2 flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={player.user.avatarUrl ?? ""}
-                      className="h-8 w-8 rounded-full border border-slate-600"
-                    />
-                    <span>{player.user.displayName}</span>
-                    {player.isCaptain && (
-                      <span className="text-xs text-yellow-400">(C)</span>
+              {team2.map((player) => {
+                const ratingLabel = averageRatingLabel(player.steamId);
+                return (
+                  <div
+                    key={player.id}
+                    className="mb-2 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={player.user.avatarUrl ?? ""}
+                        className="h-8 w-8 rounded-full border border-slate-600"
+                      />
+                      <span>{player.user.displayName}</span>
+                      {ratingLabel && (
+                        <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
+                          (~{ratingLabel})
+                        </span>
+                      )}
+                      {player.isCaptain && (
+                        <span className="text-xs text-yellow-400">(C)</span>
+                      )}
+                    </div>
+                    {isCreator && player.userId !== user.id && (
+                      <KickButton
+                        scrimCode={updatedScrim.code}
+                        targetUserId={player.userId}
+                      />
                     )}
                   </div>
-                  {isCreator && player.userId !== user.id && (
-                    <KickButton
-                      scrimCode={updatedScrim.code}
-                      targetUserId={player.userId}
-                    />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">Waiting Room</h2>
+              <h2 className="text-lg font-semibold">
+                Waiting Room ({waiting.length})
+              </h2>
               {canChangeTeams && currentUserTeam !== "WAITING_ROOM" && (
                 <TeamMoveButton
                   scrimCode={updatedScrim.code}
@@ -310,35 +426,43 @@ export default async function ScrimLobbyPage({
               </p>
             )}
 
-            {waiting.map((player) => (
-              <div
-                key={player.id}
-                className="flex items-center justify-between gap-3 mb-2"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={player.user.avatarUrl ?? ""}
-                    className="h-8 w-8 rounded-full border border-slate-600"
-                  />
-                  <span>{player.user.displayName}</span>
-                </div>
+            {waiting.map((player) => {
+              const ratingLabel = averageRatingLabel(player.steamId);
+              return (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-between gap-3 mb-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={player.user.avatarUrl ?? ""}
+                      className="h-8 w-8 rounded-full border border-slate-600"
+                    />
+                    <span>{player.user.displayName}</span>
+                    {ratingLabel && (
+                      <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
+                        (~{ratingLabel})
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  {isCaptain && (
-                    <PickButton
-                      scrimCode={updatedScrim.code}
-                      targetUserId={player.userId}
-                    />
-                  )}
-                  {isCreator && player.userId !== user.id && (
-                    <KickButton
-                      scrimCode={updatedScrim.code}
-                      targetUserId={player.userId}
-                    />
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isCaptain && (
+                      <PickButton
+                        scrimCode={updatedScrim.code}
+                        targetUserId={player.userId}
+                      />
+                    )}
+                    {isCreator && player.userId !== user.id && (
+                      <KickButton
+                        scrimCode={updatedScrim.code}
+                        targetUserId={player.userId}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

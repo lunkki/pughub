@@ -65,6 +65,17 @@ export type MatchStats = {
   players: MatchPlayerStats[];
 };
 
+export type PlayerMatchSummary = {
+  matchId: number;
+  steamId64: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  clutchWins: number;
+  rounds: number;
+};
+
 type MatchRow = RowDataPacket & {
   matchid: number;
   start_time: Date | string | null;
@@ -127,6 +138,21 @@ type PlayerRow = RowDataPacket & {
   live_time: number;
   cash_earned: number;
   enemies_flashed: number;
+};
+
+type PlayerSummaryRow = RowDataPacket & {
+  matchid: number;
+  steamid64: string | number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  clutch_wins: number;
+};
+
+type MatchRoundsRow = RowDataPacket & {
+  matchid: number;
+  rounds: number;
 };
 
 type MatchzyConfig =
@@ -440,4 +466,56 @@ export async function fetchMatchStatsById(
 
   const stats = buildMatchStats(matches, maps, players);
   return stats[0] ?? null;
+}
+
+export async function fetchRecentPlayerMatchSummaries(
+  steamId64: string,
+  limit = 5
+): Promise<PlayerMatchSummary[]> {
+  const db = getMatchzyPool();
+  const [playerRows] = await db.query<PlayerSummaryRow[]>(
+    `SELECT matchid, steamid64,
+            SUM(kills) AS kills,
+            SUM(deaths) AS deaths,
+            SUM(assists) AS assists,
+            SUM(damage) AS damage,
+            SUM(v1_wins + v2_wins) AS clutch_wins
+     FROM matchzy_stats_players
+     WHERE steamid64 = ?
+     GROUP BY matchid, steamid64
+     ORDER BY matchid DESC
+     LIMIT ?`,
+    [steamId64, limit]
+  );
+
+  if (!playerRows.length) return [];
+
+  const matchIds = playerRows.map((row) => row.matchid);
+  const placeholders = matchIds.map(() => "?").join(",");
+  const [roundRows] = await db.query<MatchRoundsRow[]>(
+    `SELECT matchid, SUM(team1_score + team2_score) AS rounds
+     FROM matchzy_stats_maps
+     WHERE matchid IN (${placeholders})
+     GROUP BY matchid`,
+    matchIds
+  );
+
+  const roundsByMatch = new Map<number, number>();
+  for (const row of roundRows) {
+    roundsByMatch.set(toNumber(row.matchid), toNumber(row.rounds));
+  }
+
+  return playerRows.map((row) => {
+    const matchId = toNumber(row.matchid);
+    return {
+      matchId,
+      steamId64: toString(row.steamid64),
+      kills: toNumber(row.kills),
+      deaths: toNumber(row.deaths),
+      assists: toNumber(row.assists),
+      damage: toNumber(row.damage),
+      clutchWins: toNumber(row.clutch_wins),
+      rounds: roundsByMatch.get(matchId) ?? 0,
+    };
+  });
 }
