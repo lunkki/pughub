@@ -3,7 +3,7 @@ import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Button } from "./components/ui/Button";
 import { JoinByCodeForm } from "./components/JoinByCodeForm";
 import { getCurrentUser } from "@/lib/auth";
-import { isScrimStarter } from "@/lib/permissions";
+import { canStartScrim } from "@/lib/permissions";
 
 const headingFont = Space_Grotesk({
   subsets: ["latin"],
@@ -17,7 +17,7 @@ const mono = JetBrains_Mono({
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const canStartScrim = user ? isScrimStarter(user.steamId) : false;
+  const canStartScrimUser = canStartScrim(user);
   const loginUrl = `/api/auth/steam?redirect=${encodeURIComponent("/")}`;
 
   return (
@@ -43,7 +43,7 @@ export default async function HomePage() {
             </p>
 
             <div className="flex flex-wrap gap-3">
-              {canStartScrim ? (
+              {canStartScrimUser ? (
                 <Button
                   asChild
                   className="bg-gradient-to-r from-sky-400 to-cyan-500 text-slate-950 shadow-lg shadow-sky-500/40 hover:from-sky-300 hover:to-cyan-400"
@@ -54,7 +54,7 @@ export default async function HomePage() {
                 <Button
                   disabled
                   className="bg-slate-800 text-slate-300"
-                  title="Ask an admin to add your SteamID to SCRIM_START_STEAM_IDS"
+                  title="Ask an admin for the MANAGER role or add your SteamID to SCRIM_START_STEAM_IDS"
                 >
                   Not cleared to start scrims
                 </Button>

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Button } from "../ui/Button";
 import { LoginButton } from "./LoginButton";
-import { isScrimStarter } from "@/lib/permissions";
+import { canManageRoles, canManageServers, canStartScrim } from "@/lib/permissions";
 
 export async function Shell({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  const canStartScrim = user ? isScrimStarter(user.steamId) : false;
+  const canStartScrimUser = canStartScrim(user);
+  const canManageServersUser = canManageServers(user);
+  const canManageRolesUser = canManageRoles(user);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -21,22 +23,45 @@ export async function Shell({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
 
-          <nav className="flex items-center gap-4 text-sm">
-            {user ? (
-              <Link href="/stats" className="hover:text-sky-400">
-                Stats
-              </Link>
-            ) : null}
-            {canStartScrim ? (
-              <>
-                <Link href="/scrims/new" className="hover:text-sky-400">
-                  Start scrim
-                </Link>
-                <Link href="/servers" className="hover:text-sky-400">
-                  Servers
-                </Link>
-              </>
-            ) : null}
+          <nav className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-3">
+              {canStartScrimUser ? (
+                <Button
+                  asChild
+                  className="bg-gradient-to-r from-sky-400 to-cyan-500 text-slate-950 shadow-md shadow-sky-500/30 hover:from-sky-300 hover:to-cyan-400"
+                >
+                  <Link href="/scrims/new">Start scrim</Link>
+                </Button>
+              ) : null}
+              {user ? (
+                <>
+                  <Link href="/matches" className="hover:text-sky-400">
+                    Matches
+                  </Link>
+                  <Link href="/leaderboard" className="hover:text-sky-400">
+                    Leaderboard
+                  </Link>
+                </>
+              ) : null}
+            </div>
+
+            {(canManageServersUser || canManageRolesUser) && (
+              <div className="flex items-center gap-4 text-xs uppercase tracking-[0.2em] text-slate-400">
+                <span className="h-5 w-px bg-slate-700/70" aria-hidden="true" />
+                <div className="flex items-center gap-3">
+                  {canManageServersUser ? (
+                    <Link href="/servers" className="hover:text-sky-300">
+                      Servers
+                    </Link>
+                  ) : null}
+                  {canManageRolesUser ? (
+                    <Link href="/admin/roles" className="hover:text-sky-300">
+                      Roles
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            )}
 
             {/* Auth UI */}
             {user ? (

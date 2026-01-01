@@ -7,7 +7,7 @@ export type SessionUser = {
   displayName: string;
   avatarUrl?: string;
   steamId: string;
-  role: "PLAYER" | "ADMIN";
+  role: "PLAYER" | "ADMIN" | "MANAGER";
 };
 
 export async function getCurrentUser(): Promise<SessionUser | null> {

@@ -27,6 +27,43 @@ export function formatSeriesType(seriesType: string) {
   return seriesType.toUpperCase();
 }
 
+export type MatchWinnerSource = Pick<
+  MatchStats,
+  "winner" | "seriesType" | "team1Name" | "team2Name" | "team1Score" | "team2Score"
+>;
+
+function getSeriesTargetWins(seriesType: string) {
+  const match = seriesType.match(/(\d+)/);
+  if (!match) return null;
+  const bestOf = Number(match[1]);
+  if (!Number.isFinite(bestOf) || bestOf <= 0) return null;
+  return Math.floor(bestOf / 2) + 1;
+}
+
+export function getMatchWinner(match: MatchWinnerSource) {
+  const storedWinner = match.winner.trim();
+  if (storedWinner) return storedWinner;
+
+  const team1Score = match.team1Score;
+  const team2Score = match.team2Score;
+  if (team1Score === team2Score) return "";
+
+  const targetWins = getSeriesTargetWins(match.seriesType);
+  if (targetWins !== null) {
+    if (team1Score >= targetWins && team1Score > team2Score) {
+      return match.team1Name.trim() || "Team 1";
+    }
+    if (team2Score >= targetWins && team2Score > team1Score) {
+      return match.team2Name.trim() || "Team 2";
+    }
+    return "";
+  }
+
+  if (team1Score > team2Score) return match.team1Name.trim() || "Team 1";
+  if (team2Score > team1Score) return match.team2Name.trim() || "Team 2";
+  return "";
+}
+
 export function normalizeTeam(value: string) {
   return value.trim().toLowerCase();
 }
@@ -174,6 +211,38 @@ export function getRating(
   const apr = player.assists / rounds;
   const adr = player.damage / rounds;
   const kast = getKastEstimate(player, rounds) ?? 0;
+  const impact = 2.13 * kpr + 0.42 * apr - 0.41;
+  const rating =
+    0.00738764 * kast +
+    0.35912389 * kpr +
+    -0.5329508 * dpr +
+    0.2372603 * impact +
+    0.0032397 * adr +
+    0.1587 -
+    0.01;
+  return rating;
+}
+
+export function getRatingFromTotals(
+  stats: {
+    kills: number;
+    deaths: number;
+    assists: number;
+    damage: number;
+    clutchWins: number;
+  },
+  rounds: number
+) {
+  if (!rounds) return null;
+  const kpr = stats.kills / rounds;
+  const dpr = stats.deaths / rounds;
+  const apr = stats.assists / rounds;
+  const adr = stats.damage / rounds;
+  const involvement = Math.min(
+    rounds,
+    stats.kills + stats.assists + stats.clutchWins
+  );
+  const kast = (involvement / rounds) * 100;
   const impact = 2.13 * kpr + 0.42 * apr - 0.41;
   const rating =
     0.00738764 * kast +

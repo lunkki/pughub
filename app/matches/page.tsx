@@ -2,14 +2,16 @@ import Link from "next/link";
 import { fetchMatchStats, hasMatchzyConfig } from "@/lib/matchzy";
 import type { MatchStats } from "@/lib/matchzy";
 import { getCurrentUser } from "@/lib/auth";
+import { getSteamProfileCache } from "@/lib/steamProfiles";
 import {
   formatDate,
-  formatDuration,
   formatSeriesType,
+  getMatchWinner,
   getHsPercent,
   getMapImage,
   getMatchRounds,
   getRating,
+  normalizeTeam,
   splitPlayersByTeam,
 } from "@/lib/matchStatsFormat";
 import { Button } from "@/app/components/ui/Button";
@@ -19,10 +21,10 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 
-export default async function StatsPage() {
+export default async function MatchesPage() {
   const user = await getCurrentUser();
   if (!user) {
-    const redirectParam = encodeURIComponent("/stats");
+    const redirectParam = encodeURIComponent("/matches");
     return (
       <div className="p-10 text-slate-50">
         <h1 className="mb-4 text-xl font-bold">
@@ -38,17 +40,38 @@ export default async function StatsPage() {
     );
   }
 
-  let error: string | null = null;
+  const hasConfig = hasMatchzyConfig();
+  let matchError: string | null = null;
   let matches: MatchStats[] = [];
+  let profileCache = new Map<string, { avatarUrl: string | null }>();
 
-  if (!hasMatchzyConfig()) {
-    error =
+  if (!hasConfig) {
+    matchError =
       "MatchZy database configuration missing. Set MATCHZY_DB_URL or MATCHZY_DB_HOST/MATCHZY_DB_USER/MATCHZY_DB_NAME in your environment.";
   } else {
     try {
       matches = await fetchMatchStats(30);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Failed to load match stats.";
+      matchError =
+        err instanceof Error ? err.message : "Failed to load match stats.";
+    }
+  }
+
+  if (!matchError && matches.length > 0) {
+    try {
+      const cache = await getSteamProfileCache(
+        matches.flatMap((match) =>
+          match.players.map((player) => player.steamId64)
+        )
+      );
+      profileCache = new Map(
+        Array.from(cache.entries(), ([steamId, entry]) => [
+          steamId,
+          { avatarUrl: entry.avatarUrl },
+        ])
+      );
+    } catch {
+      // Ignore profile cache failures and fall back to name-only UI.
     }
   }
 
@@ -56,7 +79,7 @@ export default async function StatsPage() {
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
       <div className="overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-[#0e1627] p-6 shadow-2xl shadow-sky-900/30 md:p-8">
         <p className="text-xs uppercase tracking-[0.25em] text-sky-200">
-          Match stats
+          Matches
         </p>
         <h1 className="mt-1 text-3xl font-semibold">Previous matches</h1>
         <p className="mt-2 text-sm text-slate-300">
@@ -64,24 +87,30 @@ export default async function StatsPage() {
         </p>
       </div>
 
-      {error && (
+      {matchError && (
         <div className="rounded-2xl border border-rose-900/60 bg-rose-950/40 p-5 text-sm text-rose-100">
-          {error}
+          {matchError}
         </div>
       )}
 
-      {!error && matches.length === 0 && (
+      {!matchError && matches.length === 0 && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-slate-300">
           No completed matches found yet.
         </div>
       )}
 
-      {!error && matches.length > 0 && (
+      {!matchError && matches.length > 0 && (
         <div className="space-y-5">
           {matches.map((match) => {
             const team1Name = match.team1Name || "Team 1";
             const team2Name = match.team2Name || "Team 2";
-            const winnerLabel = match.winner || "TBD";
+            const resolvedWinner = getMatchWinner(match);
+            const winnerLabel = resolvedWinner || "TBD";
+            const winnerKey = normalizeTeam(resolvedWinner);
+            const isTeam1Winner =
+              winnerKey && winnerKey === normalizeTeam(team1Name);
+            const isTeam2Winner =
+              winnerKey && winnerKey === normalizeTeam(team2Name);
             const primaryMap = match.maps[0] ?? null;
             const mapName = primaryMap?.mapName || "Unknown map";
             const mapImage = primaryMap?.mapName ? getMapImage(mapName) : null;
@@ -117,14 +146,11 @@ export default async function StatsPage() {
                         Match #{match.matchId}
                       </p>
                       <p className="mt-1 text-sm text-slate-200">
-                        {formatDate(match.startTime)} to {formatDate(match.endTime)}
+                        Started {formatDate(match.startTime)}
                       </p>
                       <p className="mt-2 text-xs text-slate-300">
-                        {formatSeriesType(match.seriesType)} | {formatDuration(match.startTime, match.endTime)}
+                        {formatSeriesType(match.seriesType)}
                       </p>
-                      {match.serverIp && (
-                        <p className="mt-2 text-xs text-slate-400">Server: {match.serverIp}</p>
-                      )}
                     </div>
                   </div>
 
@@ -154,12 +180,16 @@ export default async function StatsPage() {
 
                     <div className="grid gap-4 lg:grid-cols-2">
                       {[
-                        { label: "Team 1", name: team1Name, score: primaryMap?.team1Score ?? match.team1Score, players: team1Top, total: team1Players.length },
-                        { label: "Team 2", name: team2Name, score: primaryMap?.team2Score ?? match.team2Score, players: team2Top, total: team2Players.length },
+                        { label: "Team 1", name: team1Name, score: primaryMap?.team1Score ?? match.team1Score, players: team1Top, total: team1Players.length, highlight: isTeam1Winner },
+                        { label: "Team 2", name: team2Name, score: primaryMap?.team2Score ?? match.team2Score, players: team2Top, total: team2Players.length, highlight: isTeam2Winner },
                       ].map((team) => (
                         <div
                           key={`${match.matchId}-${team.label}`}
-                          className="rounded-2xl border border-slate-800 bg-slate-950/40"
+                          className={`rounded-2xl border ${
+                            team.highlight
+                              ? "border-emerald-500/60 bg-emerald-950/20"
+                              : "border-slate-800 bg-slate-950/40"
+                          }`}
                         >
                           <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                             <div>
@@ -188,11 +218,31 @@ export default async function StatsPage() {
                                     const hs = getHsPercent(player);
                                     const rating = getRating(player, rounds);
                                     const ratingLabel = rating ? rating.toFixed(2) : "-";
+                                    const avatarUrl =
+                                      profileCache.get(player.steamId64)?.avatarUrl ?? null;
+                                    const displayName = player.name || player.steamId64;
+                                    const initial =
+                                      displayName.trim().charAt(0).toUpperCase() || "?";
 
                                     return (
                                       <tr key={`${match.matchId}-${team.label}-${player.steamId64}`}>
                                         <td className="px-4 py-2 font-medium text-slate-100">
-                                          {player.name || player.steamId64}
+                                          <div className="flex items-center gap-2">
+                                            {avatarUrl ? (
+                                              <img
+                                                src={avatarUrl}
+                                                alt={`${displayName} avatar`}
+                                                className="h-6 w-6 rounded-full border border-slate-700 object-cover"
+                                              />
+                                            ) : (
+                                              <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-semibold text-slate-300">
+                                                {initial}
+                                              </div>
+                                            )}
+                                            <span className="font-medium text-slate-100">
+                                              {displayName}
+                                            </span>
+                                          </div>
                                         </td>
                                         <td className="px-2 py-2 text-slate-200">{player.kills}</td>
                                         <td className="px-2 py-2 text-slate-200">{player.assists}</td>
@@ -221,7 +271,7 @@ export default async function StatsPage() {
 
                     <div className="flex flex-wrap items-center justify-end gap-3">
                       <Button asChild variant="outline">
-                        <Link href={`/stats/${match.matchId}`}>View match details</Link>
+                        <Link href={`/matches/${match.matchId}`}>View match details</Link>
                       </Button>
                     </div>
                   </div>

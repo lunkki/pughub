@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canStartScrim } from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 
 function generateCode() {
@@ -10,6 +11,9 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canStartScrim(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const code = generateCode();

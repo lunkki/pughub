@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { isScrimStarter } from "@/lib/permissions";
+import { canManageServers } from "@/lib/permissions";
 import { runRconCommand } from "@/lib/serverControl";
 
 export async function POST(
@@ -11,7 +11,7 @@ export async function POST(
   const { id } = await context.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isScrimStarter(user.steamId)) {
+  if (!canManageServers(user)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

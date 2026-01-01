@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getNextTeamABBA } from "@/lib/veto";
 import { getConnectPassword, launchScrimServer } from "@/lib/serverControl";
-import { isScrimStarter } from "@/lib/permissions";
+import { canStartScrim } from "@/lib/permissions";
 
 const TURN_SECONDS = 40;
 
@@ -38,7 +38,7 @@ export async function POST(
     return NextResponse.json({ error: "Only scrim creator can start" }, { status: 403 });
   }
 
-  if (!isScrimStarter(user.steamId)) {
+  if (!canStartScrim(user)) {
     return NextResponse.json(
       { error: "You are not allowed to start scrims" },
       { status: 403 }

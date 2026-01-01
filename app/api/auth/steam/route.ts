@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSteamProfile } from "@/lib/steam";
 import { createSession } from "@/lib/session";
+import { isAdminSteamId } from "@/lib/permissions";
 
 const STEAM_OPENID_URL = "https://steamcommunity.com/openid/login";
 
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest) {
     }
 
     const profile = await getSteamProfile(steamId);
+    const shouldBeAdmin = isAdminSteamId(steamId);
 
     // Create or update user
     const user = await prisma.user.upsert({
@@ -95,11 +97,13 @@ export async function GET(req: NextRequest) {
       update: {
         ...(profile?.name ? { displayName: profile.name } : {}),
         avatarUrl: profile?.avatar ?? null,
+        ...(shouldBeAdmin ? { role: "ADMIN" } : {}),
       },
       create: {
         steamId,
         displayName: profile?.name ?? steamId,
         avatarUrl: profile?.avatar ?? null,
+        ...(shouldBeAdmin ? { role: "ADMIN" } : {}),
       },
     });
 

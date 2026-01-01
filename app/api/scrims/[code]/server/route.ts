@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { isScrimStarter } from "@/lib/permissions";
+import { canManageServers } from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -12,7 +12,7 @@ export async function POST(
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!isScrimStarter(user.steamId)) {
+  if (!canManageServers(user)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -53,4 +53,3 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
-

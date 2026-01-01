@@ -1,0 +1,2 @@
+-- Add MANAGER role to enum
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'MANAGER';

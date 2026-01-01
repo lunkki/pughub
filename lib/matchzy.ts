@@ -1,5 +1,10 @@
 import "server-only";
 import mysql, { Pool, RowDataPacket } from "mysql2/promise";
+import {
+  getMatchWinner,
+  getRatingFromTotals,
+  normalizeTeam,
+} from "./matchStatsFormat";
 
 export type MatchMapStats = {
   mapNumber: number;
@@ -76,6 +81,22 @@ export type PlayerMatchSummary = {
   rounds: number;
 };
 
+export type PlayerLeaderboardEntry = {
+  steamId64: string;
+  name: string;
+  matches: number;
+  wins: number;
+  losses: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  headshotKills: number;
+  clutchWins: number;
+  rounds: number;
+  rating: number | null;
+};
+
 type MatchRow = RowDataPacket & {
   matchid: number;
   start_time: Date | string | null;
@@ -102,7 +123,7 @@ type MapRow = RowDataPacket & {
 
 type PlayerRow = RowDataPacket & {
   matchid: number;
-  steamid64: string | number;
+  steamid64: string;
   team: string | null;
   name: string | null;
   kills: number;
@@ -140,9 +161,33 @@ type PlayerRow = RowDataPacket & {
   enemies_flashed: number;
 };
 
+type LeaderboardMatchRow = RowDataPacket & {
+  matchid: number;
+  start_time: Date | string | null;
+  winner: string | null;
+  series_type: string | null;
+  team1_name: string | null;
+  team2_name: string | null;
+  team1_score: number;
+  team2_score: number;
+};
+
+type LeaderboardPlayerRow = RowDataPacket & {
+  matchid: number;
+  steamid64: string;
+  team: string | null;
+  name: string | null;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  head_shot_kills: number;
+  clutch_wins: number;
+};
+
 type PlayerSummaryRow = RowDataPacket & {
   matchid: number;
-  steamid64: string | number;
+  steamid64: string;
   kills: number;
   deaths: number;
   assists: number;
@@ -203,19 +248,24 @@ export function getMatchzyPool(): Pool {
     );
   }
 
+  const poolOptions = {
+    waitForConnections: true,
+    connectionLimit: 6,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    connectTimeout: 5000,
+  };
+
   pool =
     "url" in config
-      ? mysql.createPool(config.url)
+      ? mysql.createPool({ uri: config.url, ...poolOptions })
       : mysql.createPool({
           host: config.host,
           user: config.user,
           password: config.password,
           database: config.database,
           port: config.port,
-          waitForConnections: true,
-          connectionLimit: 6,
-          enableKeepAlive: true,
-          keepAliveInitialDelay: 0,
+          ...poolOptions,
         });
 
   return pool;
@@ -238,6 +288,24 @@ function toNumber(value: number | string | null | undefined) {
 function toString(value: string | number | null) {
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+function resolveTeamSide(
+  teamValue: string | null,
+  team1Name: string,
+  team2Name: string
+) {
+  const key = normalizeTeam(teamValue ?? "");
+  if (!key) return null;
+  const team1Key = normalizeTeam(team1Name);
+  const team2Key = normalizeTeam(team2Name);
+  const team1Aliases = new Set<string>(["team1", "t1"]);
+  const team2Aliases = new Set<string>(["team2", "t2"]);
+  if (team1Key) team1Aliases.add(team1Key);
+  if (team2Key) team2Aliases.add(team2Key);
+  if (team1Aliases.has(key)) return "team1";
+  if (team2Aliases.has(key)) return "team2";
+  return null;
 }
 
 function buildMatchStats(
@@ -355,7 +423,7 @@ export async function fetchMatchStats(limit = 25): Promise<MatchStats[]> {
   );
 
   const [players] = await db.query<PlayerRow[]>(
-    `SELECT matchid, steamid64, team, name,
+    `SELECT matchid, CAST(steamid64 AS CHAR) AS steamid64, team, name,
             SUM(kills) AS kills,
             SUM(deaths) AS deaths,
             SUM(assists) AS assists,
@@ -423,7 +491,7 @@ export async function fetchMatchStatsById(
   );
 
   const [players] = await db.query<PlayerRow[]>(
-    `SELECT matchid, steamid64, team, name,
+    `SELECT matchid, CAST(steamid64 AS CHAR) AS steamid64, team, name,
             SUM(kills) AS kills,
             SUM(deaths) AS deaths,
             SUM(assists) AS assists,
@@ -468,13 +536,221 @@ export async function fetchMatchStatsById(
   return stats[0] ?? null;
 }
 
+export async function fetchPlayerLeaderboard(
+  limit = 50
+): Promise<PlayerLeaderboardEntry[]> {
+  if (limit <= 0) return [];
+  const db = getMatchzyPool();
+  const [matchRows] = await db.query<LeaderboardMatchRow[]>(
+    `SELECT matchid, start_time, winner, series_type, team1_name, team2_name,
+            team1_score, team2_score
+     FROM matchzy_stats_matches`
+  );
+
+  if (!matchRows.length) return [];
+
+  const matchIds = matchRows.map((row) => row.matchid);
+  const placeholders = matchIds.map(() => "?").join(",");
+  const [roundRows] = await db.query<MatchRoundsRow[]>(
+    `SELECT matchid, SUM(team1_score + team2_score) AS rounds
+     FROM matchzy_stats_maps
+     WHERE matchid IN (${placeholders})
+     GROUP BY matchid`,
+    matchIds
+  );
+
+  const roundsByMatch = new Map<number, number>();
+  for (const row of roundRows) {
+    roundsByMatch.set(toNumber(row.matchid), toNumber(row.rounds));
+  }
+
+  const matchById = new Map<
+    number,
+    {
+      startTime: Date | null;
+      team1Name: string;
+      team2Name: string;
+      winnerSide: "team1" | "team2" | null;
+    }
+  >();
+
+  for (const row of matchRows) {
+    const matchId = toNumber(row.matchid);
+    const team1Name = row.team1_name ?? "";
+    const team2Name = row.team2_name ?? "";
+    const winnerName = getMatchWinner({
+      winner: row.winner ?? "",
+      seriesType: row.series_type ?? "",
+      team1Name,
+      team2Name,
+      team1Score: toNumber(row.team1_score),
+      team2Score: toNumber(row.team2_score),
+    });
+    const winnerSide = winnerName
+      ? resolveTeamSide(winnerName, team1Name, team2Name)
+      : null;
+
+    matchById.set(matchId, {
+      startTime: toDate(row.start_time),
+      team1Name,
+      team2Name,
+      winnerSide,
+    });
+  }
+
+  const [playerRows] = await db.query<LeaderboardPlayerRow[]>(
+    `SELECT matchid, CAST(steamid64 AS CHAR) AS steamid64, team, name,
+            SUM(kills) AS kills,
+            SUM(deaths) AS deaths,
+            SUM(assists) AS assists,
+            SUM(damage) AS damage,
+            SUM(head_shot_kills) AS head_shot_kills,
+            SUM(v1_wins + v2_wins) AS clutch_wins
+     FROM matchzy_stats_players
+     GROUP BY matchid, steamid64, team, name
+     ORDER BY matchid DESC`
+  );
+
+  if (!playerRows.length) return [];
+
+  const leaderboard = new Map<
+    string,
+    {
+      steamId64: string;
+      name: string;
+      latestMatchTime: number;
+      latestMatchId: number;
+      kills: number;
+      deaths: number;
+      assists: number;
+      damage: number;
+      headshotKills: number;
+      clutchWins: number;
+      rounds: number;
+      matchTeams: Map<number, "team1" | "team2" | null>;
+    }
+  >();
+
+  for (const row of playerRows) {
+    const matchId = toNumber(row.matchid);
+    const match = matchById.get(matchId);
+    if (!match) continue;
+
+    const steamId64 = toString(row.steamid64);
+    let entry = leaderboard.get(steamId64);
+    if (!entry) {
+      entry = {
+        steamId64,
+        name: "",
+        latestMatchTime: -1,
+        latestMatchId: -1,
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+      damage: 0,
+      headshotKills: 0,
+      clutchWins: 0,
+      rounds: 0,
+      matchTeams: new Map(),
+    };
+    leaderboard.set(steamId64, entry);
+  }
+
+    entry.kills += toNumber(row.kills);
+    entry.deaths += toNumber(row.deaths);
+    entry.assists += toNumber(row.assists);
+    entry.damage += toNumber(row.damage);
+    entry.headshotKills += toNumber(row.head_shot_kills);
+    entry.clutchWins += toNumber(row.clutch_wins);
+
+    const matchTime = match.startTime?.getTime() ?? 0;
+    const rowName = row.name?.trim() ?? "";
+    if (
+      rowName &&
+      (matchTime > entry.latestMatchTime ||
+        (matchTime === entry.latestMatchTime && matchId > entry.latestMatchId))
+    ) {
+      entry.name = rowName;
+      entry.latestMatchTime = matchTime;
+      entry.latestMatchId = matchId;
+    }
+
+    const teamSide = resolveTeamSide(row.team, match.team1Name, match.team2Name);
+    if (!entry.matchTeams.has(matchId)) {
+      entry.matchTeams.set(matchId, teamSide);
+      entry.rounds += roundsByMatch.get(matchId) ?? 0;
+    } else if (teamSide) {
+      const existing = entry.matchTeams.get(matchId);
+      if (existing && existing !== teamSide) {
+        entry.matchTeams.set(matchId, null);
+      } else if (!existing) {
+        entry.matchTeams.set(matchId, teamSide);
+      }
+    }
+  }
+
+  const entries: PlayerLeaderboardEntry[] = [];
+  for (const entry of leaderboard.values()) {
+    let wins = 0;
+    let losses = 0;
+    for (const [matchId, teamSide] of entry.matchTeams) {
+      if (!teamSide) continue;
+      const match = matchById.get(matchId);
+      if (!match?.winnerSide) continue;
+      if (match.winnerSide === teamSide) {
+        wins += 1;
+      } else {
+        losses += 1;
+      }
+    }
+
+    const rating = getRatingFromTotals(
+      {
+        kills: entry.kills,
+        deaths: entry.deaths,
+        assists: entry.assists,
+        damage: entry.damage,
+        clutchWins: entry.clutchWins,
+      },
+      entry.rounds
+    );
+
+    entries.push({
+      steamId64: entry.steamId64,
+      name: entry.name || entry.steamId64,
+      matches: entry.matchTeams.size,
+      wins,
+      losses,
+      kills: entry.kills,
+      deaths: entry.deaths,
+      assists: entry.assists,
+      damage: entry.damage,
+      headshotKills: entry.headshotKills,
+      clutchWins: entry.clutchWins,
+      rounds: entry.rounds,
+      rating,
+    });
+  }
+
+  entries.sort((a, b) => {
+    const aRating = a.rating ?? -Infinity;
+    const bRating = b.rating ?? -Infinity;
+    if (bRating !== aRating) return bRating - aRating;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.kills !== a.kills) return b.kills - a.kills;
+    return b.matches - a.matches;
+  });
+
+  return entries.slice(0, limit);
+}
+
 export async function fetchRecentPlayerMatchSummaries(
   steamId64: string,
   limit = 5
 ): Promise<PlayerMatchSummary[]> {
   const db = getMatchzyPool();
   const [playerRows] = await db.query<PlayerSummaryRow[]>(
-    `SELECT matchid, steamid64,
+    `SELECT matchid, CAST(steamid64 AS CHAR) AS steamid64,
             SUM(kills) AS kills,
             SUM(deaths) AS deaths,
             SUM(assists) AS assists,

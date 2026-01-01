@@ -106,7 +106,7 @@ export function ScrimCreatorControls({
         </select>
         {!canManageServers && (
           <p className="mt-2 text-xs text-slate-500">
-            Only Steam IDs in SCRIM_START_STEAM_IDS can change servers.
+            Only admins can change servers.
           </p>
         )}
       </div>

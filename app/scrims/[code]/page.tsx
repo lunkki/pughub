@@ -12,7 +12,7 @@ import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
-import { isScrimStarter } from "@/lib/permissions";
+import { canManageServers, canStartScrim } from "@/lib/permissions";
 import { fetchRecentPlayerMatchSummaries, hasMatchzyConfig } from "@/lib/matchzy";
 import { getRating } from "@/lib/matchStatsFormat";
 
@@ -164,9 +164,11 @@ export default async function ScrimLobbyPage({
 
   const vetoState = parseVetoState(updatedScrim.vetoState);
   const isCreator = user.id === updatedScrim.creatorId;
-  const canManageServers = isCreator && isScrimStarter(user.steamId);
+  const canStartScrimUser = canStartScrim(user);
+  const canManageServersUser = canManageServers(user);
+  const canManageServersForScrim = isCreator && canManageServersUser;
   const statusLabel = updatedScrim.status.replace(/_/g, " ");
-  const servers = canManageServers
+  const servers = canManageServersForScrim
     ? await prisma.server.findMany({
         orderBy: { name: "asc" },
         select: { id: true, name: true, address: true, isActive: true },
@@ -273,6 +275,7 @@ export default async function ScrimLobbyPage({
             <ScrimControls
               scrimCode={updatedScrim.code}
               isCreator={isCreator}
+              canStartScrim={canStartScrimUser}
               vetoState={vetoState}
               mapPoolLength={mapPool.length}
               selectedMap={updatedScrim.selectedMap}
@@ -291,7 +294,7 @@ export default async function ScrimLobbyPage({
                     serverId: updatedScrim.serverId,
                   }}
                   servers={servers}
-                  canManageServers={canManageServers}
+                  canManageServers={canManageServersForScrim}
                   embedded
                 />
               </div>

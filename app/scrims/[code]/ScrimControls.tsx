@@ -6,6 +6,7 @@ import type { VetoState } from "@/lib/veto";
 type ScrimControlsProps = {
   scrimCode: string;
   isCreator: boolean;
+  canStartScrim: boolean;
   vetoState: VetoState;
   mapPoolLength: number;
   selectedMap: string | null;
@@ -17,6 +18,7 @@ type ScrimControlsProps = {
 export function ScrimControls({
   scrimCode,
   isCreator,
+  canStartScrim,
   vetoState,
   mapPoolLength,
   selectedMap,
@@ -29,6 +31,7 @@ export function ScrimControls({
 
   const canStartVeto =
     isCreator &&
+    canStartScrim &&
     vetoState.phase === "NOT_STARTED" &&
     mapPoolLength >= 1;
 
@@ -120,6 +123,11 @@ export function ScrimControls({
           {!isCreator && (
             <p className="text-[11px] text-slate-500">
               Only the scrim creator can start the match / veto.
+            </p>
+          )}
+          {isCreator && !canStartScrim && (
+            <p className="text-[11px] text-slate-500">
+              You do not have permission to start scrims. Ask an admin for the MANAGER role.
             </p>
           )}
 

@@ -5,13 +5,14 @@ import {
   type MatchStats,
 } from "@/lib/matchzy";
 import { getCurrentUser } from "@/lib/auth";
+import { getSteamProfileCache } from "@/lib/steamProfiles";
 import {
   formatDate,
-  formatDuration,
   formatSeriesType,
   getAdr,
   getHsPercent,
   getKastEstimate,
+  getMatchWinner,
   getMapImage,
   getMatchRounds,
   getRating,
@@ -67,7 +68,7 @@ export default async function MatchStatsDetailPage({
   const user = await getCurrentUser();
 
   if (!user) {
-    const redirectParam = encodeURIComponent(`/stats/${matchId}`);
+    const redirectParam = encodeURIComponent(`/matches/${matchId}`);
     return (
       <div className="p-10 text-slate-50">
         <h1 className="mb-4 text-xl font-bold">
@@ -88,8 +89,8 @@ export default async function MatchStatsDetailPage({
     return (
       <div className="p-10 text-slate-50">
         Invalid match id.{" "}
-        <Link href="/stats" className="text-sky-400 underline">
-          Back to stats
+        <Link href="/matches" className="text-sky-400 underline">
+          Back to matches
         </Link>
       </div>
     );
@@ -97,6 +98,7 @@ export default async function MatchStatsDetailPage({
 
   let error: string | null = null;
   let match: MatchStats | null = null;
+  let profileCache = new Map<string, { avatarUrl: string | null }>();
 
   if (!hasMatchzyConfig()) {
     error =
@@ -112,6 +114,22 @@ export default async function MatchStatsDetailPage({
     }
   }
 
+  if (!error && match) {
+    try {
+      const cache = await getSteamProfileCache(
+        match.players.map((player) => player.steamId64)
+      );
+      profileCache = new Map(
+        Array.from(cache.entries(), ([steamId, entry]) => [
+          steamId,
+          { avatarUrl: entry.avatarUrl },
+        ])
+      );
+    } catch {
+      // Ignore profile cache failures and fall back to name-only UI.
+    }
+  }
+
   return (
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -119,7 +137,7 @@ export default async function MatchStatsDetailPage({
           Match details
         </div>
         <Button asChild variant="outline">
-          <Link href="/stats">Back to all matches</Link>
+          <Link href="/matches">Back to all matches</Link>
         </Button>
       </div>
 
@@ -132,12 +150,13 @@ export default async function MatchStatsDetailPage({
       {!error && match && (() => {
         const team1Name = match.team1Name || "Team 1";
         const team2Name = match.team2Name || "Team 2";
-        const winnerLabel = match.winner || "TBD";
+        const resolvedWinner = getMatchWinner(match);
+        const winnerLabel = resolvedWinner || "TBD";
         const primaryMap = match.maps[0] ?? null;
         const mapName = primaryMap?.mapName || "Unknown map";
         const mapImage = primaryMap?.mapName ? getMapImage(mapName) : null;
         const rounds = getMatchRounds(match);
-        const winnerKey = normalizeTeam(match.winner);
+        const winnerKey = normalizeTeam(resolvedWinner);
         const isTeam1Winner =
           winnerKey && winnerKey === normalizeTeam(team1Name);
         const isTeam2Winner =
@@ -152,6 +171,13 @@ export default async function MatchStatsDetailPage({
           { label: "Team 1", name: team1Name, players: team1Players },
           { label: "Team 2", name: team2Name, players: team2Players },
         ];
+        const getPlayerAvatar = (player: MatchStats["players"][number]) => {
+          const avatarUrl =
+            profileCache.get(player.steamId64)?.avatarUrl ?? null;
+          const displayName = player.name || player.steamId64;
+          const initial = displayName.trim().charAt(0).toUpperCase() || "?";
+          return { avatarUrl, displayName, initial };
+        };
 
         return (
           <>
@@ -170,9 +196,8 @@ export default async function MatchStatsDetailPage({
                     {team1Name} vs {team2Name}
                   </h1>
                   <p className="mt-2 text-sm text-slate-200">
-                    {formatDate(match.startTime)} to {formatDate(match.endTime)} |{" "}
-                    {formatSeriesType(match.seriesType)} |{" "}
-                    {formatDuration(match.startTime, match.endTime)}
+                    Started {formatDate(match.startTime)} |{" "}
+                    {formatSeriesType(match.seriesType)}
                   </p>
                   <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-300">
                     Map: {mapName}
@@ -192,11 +217,6 @@ export default async function MatchStatsDetailPage({
                       Series: {match.team1Score} : {match.team2Score}
                     </p>
                   )}
-                  {match.serverIp && (
-                    <p className="mt-2 text-xs text-slate-300">
-                      Server: {match.serverIp}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -204,10 +224,10 @@ export default async function MatchStatsDetailPage({
             <div className="grid gap-3 md:grid-cols-4">
               <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Duration
+                  Start time
                 </p>
                 <p className="mt-2 text-lg font-semibold text-slate-100">
-                  {formatDuration(match.startTime, match.endTime)}
+                  {formatDate(match.startTime)}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
@@ -406,7 +426,28 @@ export default async function MatchStatsDetailPage({
                                       key={`${match.matchId}-${team.label}-${player.steamId64}`}
                                     >
                                       <td className="px-4 py-3 font-medium text-slate-100">
-                                        {player.name || player.steamId64}
+                                        {(() => {
+                                          const { avatarUrl, displayName, initial } =
+                                            getPlayerAvatar(player);
+                                          return (
+                                            <div className="flex items-center gap-2">
+                                              {avatarUrl ? (
+                                                <img
+                                                  src={avatarUrl}
+                                                  alt={`${displayName} avatar`}
+                                                  className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                                                />
+                                              ) : (
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[11px] font-semibold text-slate-300">
+                                                  {initial}
+                                                </div>
+                                              )}
+                                              <span className="font-medium text-slate-100">
+                                                {displayName}
+                                              </span>
+                                            </div>
+                                          );
+                                        })()}
                                       </td>
                                       <td className="px-3 py-3 text-slate-200">
                                         {player.kills}
@@ -502,7 +543,28 @@ export default async function MatchStatsDetailPage({
                                 return (
                                   <tr key={`utility-${team.label}-${player.steamId64}`}>
                                     <td className="px-4 py-2 font-medium text-slate-100">
-                                      {player.name || player.steamId64}
+                                      {(() => {
+                                        const { avatarUrl, displayName, initial } =
+                                          getPlayerAvatar(player);
+                                        return (
+                                          <div className="flex items-center gap-2">
+                                            {avatarUrl ? (
+                                              <img
+                                                src={avatarUrl}
+                                                alt={`${displayName} avatar`}
+                                                className="h-6 w-6 rounded-full border border-slate-700 object-cover"
+                                              />
+                                            ) : (
+                                              <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-semibold text-slate-300">
+                                                {initial}
+                                              </div>
+                                            )}
+                                            <span className="font-medium text-slate-100">
+                                              {displayName}
+                                            </span>
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="px-2 py-2 text-slate-200">{player.utilityCount}</td>
                                     <td className="px-2 py-2 text-slate-200">{player.utilityDamage}</td>
@@ -560,7 +622,28 @@ export default async function MatchStatsDetailPage({
                                 return (
                                   <tr key={`entry-${team.label}-${player.steamId64}`}>
                                     <td className="px-4 py-2 font-medium text-slate-100">
-                                      {player.name || player.steamId64}
+                                      {(() => {
+                                        const { avatarUrl, displayName, initial } =
+                                          getPlayerAvatar(player);
+                                        return (
+                                          <div className="flex items-center gap-2">
+                                            {avatarUrl ? (
+                                              <img
+                                                src={avatarUrl}
+                                                alt={`${displayName} avatar`}
+                                                className="h-6 w-6 rounded-full border border-slate-700 object-cover"
+                                              />
+                                            ) : (
+                                              <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-semibold text-slate-300">
+                                                {initial}
+                                              </div>
+                                            )}
+                                            <span className="font-medium text-slate-100">
+                                              {displayName}
+                                            </span>
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="px-2 py-2 text-slate-200">{entryLabel}</td>
                                     <td className="px-2 py-2 text-slate-200">{entryRate}</td>
@@ -622,7 +705,28 @@ export default async function MatchStatsDetailPage({
                                 return (
                                   <tr key={`clutch-${team.label}-${player.steamId64}`}>
                                     <td className="px-4 py-2 font-medium text-slate-100">
-                                      {player.name || player.steamId64}
+                                      {(() => {
+                                        const { avatarUrl, displayName, initial } =
+                                          getPlayerAvatar(player);
+                                        return (
+                                          <div className="flex items-center gap-2">
+                                            {avatarUrl ? (
+                                              <img
+                                                src={avatarUrl}
+                                                alt={`${displayName} avatar`}
+                                                className="h-6 w-6 rounded-full border border-slate-700 object-cover"
+                                              />
+                                            ) : (
+                                              <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-semibold text-slate-300">
+                                                {initial}
+                                              </div>
+                                            )}
+                                            <span className="font-medium text-slate-100">
+                                              {displayName}
+                                            </span>
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="px-2 py-2 text-slate-200">{v1Label}</td>
                                     <td className="px-2 py-2 text-slate-200">{v2Label}</td>
@@ -669,7 +773,28 @@ export default async function MatchStatsDetailPage({
                               {team.players.map((player) => (
                                 <tr key={`multi-${team.label}-${player.steamId64}`}>
                                   <td className="px-4 py-2 font-medium text-slate-100">
-                                    {player.name || player.steamId64}
+                                    {(() => {
+                                      const { avatarUrl, displayName, initial } =
+                                        getPlayerAvatar(player);
+                                      return (
+                                        <div className="flex items-center gap-2">
+                                          {avatarUrl ? (
+                                            <img
+                                              src={avatarUrl}
+                                              alt={`${displayName} avatar`}
+                                              className="h-6 w-6 rounded-full border border-slate-700 object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-semibold text-slate-300">
+                                              {initial}
+                                            </div>
+                                          )}
+                                          <span className="font-medium text-slate-100">
+                                            {displayName}
+                                          </span>
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="px-2 py-2 text-slate-200">{player.enemy2ks}</td>
                                   <td className="px-2 py-2 text-slate-200">{player.enemy3ks}</td>
@@ -711,7 +836,28 @@ export default async function MatchStatsDetailPage({
                         return (
                           <tr key={`${match.matchId}-other-${player.steamId64}`}>
                             <td className="px-4 py-3 font-medium text-slate-100">
-                              {player.name || player.steamId64}
+                              {(() => {
+                                const { avatarUrl, displayName, initial } =
+                                  getPlayerAvatar(player);
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    {avatarUrl ? (
+                                      <img
+                                        src={avatarUrl}
+                                        alt={`${displayName} avatar`}
+                                        className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[11px] font-semibold text-slate-300">
+                                        {initial}
+                                      </div>
+                                    )}
+                                    <span className="font-medium text-slate-100">
+                                      {displayName}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-slate-300">
                               {player.team || "N/A"}
