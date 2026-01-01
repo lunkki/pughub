@@ -68,9 +68,11 @@ model ScrimPlayer {
   id         String   @id @default(cuid())
   scrim      Scrim    @relation(fields: [scrimId], references: [id])
   scrimId    String
-  user       User     @relation(fields: [userId], references: [id])
-  userId     String
-  steamId    String
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     String?
+  steamId    String?
+  displayName String?
+  isPlaceholder Boolean @default(false)
 
   // ⭐ FIXED: Team always required
   team       Team     @default(WAITING_ROOM)

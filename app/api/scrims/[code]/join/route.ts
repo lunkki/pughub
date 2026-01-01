@@ -50,7 +50,7 @@ export async function POST(
   // Re-assign captain inside the team (first joiner becomes C)
   if (team === "TEAM1" || team === "TEAM2") {
     const playersInTeam = await prisma.scrimPlayer.findMany({
-      where: { scrimId: scrim.id, team },
+      where: { scrimId: scrim.id, team, isPlaceholder: false },
       orderBy: { joinedAt: "asc" },
     });
 

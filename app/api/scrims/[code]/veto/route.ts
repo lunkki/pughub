@@ -101,7 +101,9 @@ export async function POST(
       );
     }
     const stateNonNull: VetoState = state;
-    const teamPlayers = scrim.players.filter((p) => p.team === myTeam);
+    const teamPlayers = scrim.players.filter(
+      (p) => p.team === myTeam && !p.isPlaceholder && p.userId
+    );
     const totalVoters = Math.max(teamPlayers.length, 1);
     const currentTurn = stateNonNull.banned.length;
 

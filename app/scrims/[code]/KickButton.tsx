@@ -4,10 +4,10 @@ import { Button } from "@/app/components/ui/Button";
 
 export function KickButton({
   scrimCode,
-  targetUserId,
+  targetPlayerId,
 }: {
   scrimCode: string;
-  targetUserId: string;
+  targetPlayerId: string;
 }) {
   async function kick() {
     const ok = window.confirm("Kick this player from the scrim?");
@@ -16,7 +16,7 @@ export function KickButton({
     await fetch(`/api/scrims/${scrimCode}/kick`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetUserId }),
+      body: JSON.stringify({ targetPlayerId }),
     });
     window.location.reload();
   }
@@ -31,4 +31,3 @@ export function KickButton({
     </Button>
   );
 }
-

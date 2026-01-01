@@ -41,3 +41,8 @@ export function canManageServers(user: SessionUser | null): boolean {
 export function canManageRoles(user: SessionUser | null): boolean {
   return isAdminUser(user);
 }
+
+export function canManageLobbyPlayers(user: SessionUser | null): boolean {
+  if (!user) return false;
+  return user.role === "MANAGER" || isAdminUser(user);
+}

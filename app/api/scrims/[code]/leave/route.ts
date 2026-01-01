@@ -38,7 +38,7 @@ export async function POST(
   // Captain reassignment
   if (oldTeam === "TEAM1" || oldTeam === "TEAM2") {
     const remaining = await prisma.scrimPlayer.findMany({
-      where: { scrimId: scrim.id, team: oldTeam },
+      where: { scrimId: scrim.id, team: oldTeam, isPlaceholder: false },
       orderBy: { joinedAt: "asc" },
     });
 

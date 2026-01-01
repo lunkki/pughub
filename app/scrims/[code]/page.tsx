@@ -10,9 +10,10 @@ import { SseListener } from "./SseListener";
 import { ScrimCreatorControls } from "./ScrimCreatorControls";
 import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
+import { PlaceholderPlayerForm } from "./PlaceholderPlayerForm";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
-import { canManageServers, canStartScrim } from "@/lib/permissions";
+import { canManageLobbyPlayers, canManageServers, canStartScrim } from "@/lib/permissions";
 import { fetchRecentPlayerMatchSummaries, hasMatchzyConfig } from "@/lib/matchzy";
 import { getRating } from "@/lib/matchStatsFormat";
 
@@ -165,6 +166,7 @@ export default async function ScrimLobbyPage({
   const vetoState = parseVetoState(updatedScrim.vetoState);
   const isCreator = user.id === updatedScrim.creatorId;
   const canStartScrimUser = canStartScrim(user);
+  const canManageLobbyPlayersUser = canManageLobbyPlayers(user);
   const canManageServersUser = canManageServers(user);
   const canManageServersForScrim = isCreator && canManageServersUser;
   const statusLabel = updatedScrim.status.replace(/_/g, " ");
@@ -180,6 +182,12 @@ export default async function ScrimLobbyPage({
   const waiting = updatedScrim.players.filter(
     (p) => p.team === "WAITING_ROOM"
   );
+  const vetoPlayers = updatedScrim.players.filter(
+    (
+      player
+    ): player is typeof player & { user: NonNullable<typeof player.user> } =>
+      Boolean(player.user && player.userId)
+  );
 
   // Captain detection
   const captain1UserId = team1.find((p) => p.isCaptain)?.userId;
@@ -192,6 +200,7 @@ export default async function ScrimLobbyPage({
       const steamIds = Array.from(
         new Set(
           updatedScrim.players
+            .filter((player) => player.steamId && !player.isPlaceholder)
             .map((player) => player.steamId)
             .filter((steamId): steamId is string => Boolean(steamId))
         )
@@ -231,6 +240,20 @@ export default async function ScrimLobbyPage({
     const average = averageRatings.get(steamId);
     if (average === undefined) return null;
     return average.toFixed(2);
+  };
+
+  const canKickPlayers = isCreator || canManageLobbyPlayersUser;
+  const getPlayerMeta = (player: (typeof updatedScrim.players)[number]) => {
+    const displayName =
+      player.user?.displayName || player.displayName || "Unknown player";
+    const avatarUrl = player.user?.avatarUrl ?? "";
+    const isPlaceholder = player.isPlaceholder || !player.userId;
+    const ratingLabel =
+      player.steamId && !isPlaceholder
+        ? averageRatingLabel(player.steamId)
+        : null;
+    const initial = displayName.trim().charAt(0).toUpperCase() || "?";
+    return { displayName, avatarUrl, isPlaceholder, ratingLabel, initial };
   };
 
   return (
@@ -323,18 +346,31 @@ export default async function ScrimLobbyPage({
               )}
 
               {team1.map((player) => {
-                const ratingLabel = averageRatingLabel(player.steamId);
+                const { displayName, avatarUrl, isPlaceholder, ratingLabel, initial } =
+                  getPlayerMeta(player);
+                const isSelf = player.userId === user.id;
                 return (
                   <div
                     key={player.id}
                     className="mb-2 flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3">
-                      <img
-                        src={player.user.avatarUrl ?? ""}
-                        className="h-8 w-8 rounded-full border border-slate-600"
-                      />
-                      <span>{player.user.displayName}</span>
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          className="h-8 w-8 rounded-full border border-slate-600 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-xs font-semibold text-slate-300">
+                          {initial}
+                        </div>
+                      )}
+                      <span>{displayName}</span>
+                      {isPlaceholder && (
+                        <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
+                          Placeholder
+                        </span>
+                      )}
                       {ratingLabel && (
                         <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
                           (~{ratingLabel})
@@ -344,10 +380,10 @@ export default async function ScrimLobbyPage({
                         <span className="text-xs text-yellow-400">(C)</span>
                       )}
                     </div>
-                    {isCreator && player.userId !== user.id && (
+                    {canKickPlayers && !isSelf && (
                       <KickButton
                         scrimCode={updatedScrim.code}
-                        targetUserId={player.userId}
+                        targetPlayerId={player.id}
                       />
                     )}
                   </div>
@@ -374,18 +410,31 @@ export default async function ScrimLobbyPage({
               )}
 
               {team2.map((player) => {
-                const ratingLabel = averageRatingLabel(player.steamId);
+                const { displayName, avatarUrl, isPlaceholder, ratingLabel, initial } =
+                  getPlayerMeta(player);
+                const isSelf = player.userId === user.id;
                 return (
                   <div
                     key={player.id}
                     className="mb-2 flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3">
-                      <img
-                        src={player.user.avatarUrl ?? ""}
-                        className="h-8 w-8 rounded-full border border-slate-600"
-                      />
-                      <span>{player.user.displayName}</span>
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          className="h-8 w-8 rounded-full border border-slate-600 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-xs font-semibold text-slate-300">
+                          {initial}
+                        </div>
+                      )}
+                      <span>{displayName}</span>
+                      {isPlaceholder && (
+                        <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
+                          Placeholder
+                        </span>
+                      )}
                       {ratingLabel && (
                         <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
                           (~{ratingLabel})
@@ -395,10 +444,10 @@ export default async function ScrimLobbyPage({
                         <span className="text-xs text-yellow-400">(C)</span>
                       )}
                     </div>
-                    {isCreator && player.userId !== user.id && (
+                    {canKickPlayers && !isSelf && (
                       <KickButton
                         scrimCode={updatedScrim.code}
-                        targetUserId={player.userId}
+                        targetPlayerId={player.id}
                       />
                     )}
                   </div>
@@ -430,18 +479,31 @@ export default async function ScrimLobbyPage({
             )}
 
             {waiting.map((player) => {
-              const ratingLabel = averageRatingLabel(player.steamId);
+              const { displayName, avatarUrl, isPlaceholder, ratingLabel, initial } =
+                getPlayerMeta(player);
+              const isSelf = player.userId === user.id;
               return (
                 <div
                   key={player.id}
                   className="flex items-center justify-between gap-3 mb-2"
                 >
                   <div className="flex items-center gap-3">
-                    <img
-                      src={player.user.avatarUrl ?? ""}
-                      className="h-8 w-8 rounded-full border border-slate-600"
-                    />
-                    <span>{player.user.displayName}</span>
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        className="h-8 w-8 rounded-full border border-slate-600 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-xs font-semibold text-slate-300">
+                        {initial}
+                      </div>
+                    )}
+                    <span>{displayName}</span>
+                    {isPlaceholder && (
+                      <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
+                        Placeholder
+                      </span>
+                    )}
                     {ratingLabel && (
                       <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
                         (~{ratingLabel})
@@ -453,19 +515,23 @@ export default async function ScrimLobbyPage({
                     {isCaptain && (
                       <PickButton
                         scrimCode={updatedScrim.code}
-                        targetUserId={player.userId}
+                        targetPlayerId={player.id}
                       />
                     )}
-                    {isCreator && player.userId !== user.id && (
+                    {canKickPlayers && !isSelf && (
                       <KickButton
                         scrimCode={updatedScrim.code}
-                        targetUserId={player.userId}
+                        targetPlayerId={player.id}
                       />
                     )}
                   </div>
                 </div>
               );
             })}
+
+            {canChangeTeams && canManageLobbyPlayersUser && (
+              <PlaceholderPlayerForm scrimCode={updatedScrim.code} />
+            )}
           </div>
         </div>
       </div>
@@ -489,7 +555,7 @@ export default async function ScrimLobbyPage({
                 : null
             }
             vetoMode={updatedScrim.vetoMode}
-            players={updatedScrim.players}
+            players={vetoPlayers}
           />
         </div>
       </div>

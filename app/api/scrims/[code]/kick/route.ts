@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canManageLobbyPlayers } from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -11,9 +12,12 @@ export async function POST(
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { targetUserId } = (await req.json()) as { targetUserId?: string };
-  if (!targetUserId) {
-    return NextResponse.json({ error: "targetUserId is required" }, { status: 400 });
+  const { targetPlayerId } = (await req.json()) as { targetPlayerId?: string };
+  if (!targetPlayerId) {
+    return NextResponse.json(
+      { error: "targetPlayerId is required" },
+      { status: 400 }
+    );
   }
 
   const scrim = await prisma.scrim.findUnique({
@@ -23,20 +27,19 @@ export async function POST(
 
   if (!scrim) return NextResponse.json({ error: "Scrim not found" }, { status: 404 });
 
-  if (scrim.creatorId !== user.id) {
-    return NextResponse.json({ error: "Only scrim creator can kick" }, { status: 403 });
+  if (scrim.creatorId !== user.id && !canManageLobbyPlayers(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (scrim.status !== "LOBBY") {
     return NextResponse.json({ error: "Players are locked" }, { status: 403 });
   }
 
-  if (targetUserId === user.id) {
+  const target = scrim.players.find((p) => p.id === targetPlayerId);
+  if (!target) return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  if (target.userId && target.userId === user.id) {
     return NextResponse.json({ error: "Cannot kick yourself" }, { status: 400 });
   }
-
-  const target = scrim.players.find((p) => p.userId === targetUserId);
-  if (!target) return NextResponse.json({ error: "Player not found" }, { status: 404 });
 
   const oldTeam = target.team;
 
@@ -51,7 +54,7 @@ export async function POST(
     });
 
     const remaining = await prisma.scrimPlayer.findMany({
-      where: { scrimId: scrim.id, team: oldTeam },
+      where: { scrimId: scrim.id, team: oldTeam, isPlaceholder: false },
       orderBy: { joinedAt: "asc" },
     });
 
@@ -70,4 +73,3 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
-

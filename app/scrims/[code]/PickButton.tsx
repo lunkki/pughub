@@ -4,16 +4,16 @@ import { Button } from "@/app/components/ui/Button";
 
 export function PickButton({
   scrimCode,
-  targetUserId
+  targetPlayerId
 }: {
   scrimCode: string;
-  targetUserId: string;
+  targetPlayerId: string;
 }) {
   async function pick() {
     await fetch(`/api/scrims/${scrimCode}/pick`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetUserId }),
+      body: JSON.stringify({ targetPlayerId }),
     });
     window.location.reload();
   }
