@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getNextTeamABBA } from "@/lib/veto";
+import { VETO_TURN_SECONDS, getNextTeamABBA } from "@/lib/veto";
 import { getConnectPassword, launchScrimServer } from "@/lib/serverControl";
 import { canStartScrim } from "@/lib/permissions";
 
-const TURN_SECONDS = 40;
 
 export async function POST(
   req: NextRequest,
@@ -143,7 +142,7 @@ export async function POST(
   }
 
   // Normal case: start veto
-  const deadline = new Date(Date.now() + TURN_SECONDS * 1000).toISOString();
+  const deadline = new Date(Date.now() + VETO_TURN_SECONDS * 1000).toISOString();
 
   const initialState = {
     phase: "IN_PROGRESS",

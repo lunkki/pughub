@@ -256,6 +256,35 @@ export default async function ScrimLobbyPage({
     return { displayName, avatarUrl, isPlaceholder, ratingLabel, initial };
   };
 
+  const CrownIcon = () => (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+    >
+      <path
+        fill="currentColor"
+        d="M3 15.5h14l-1.2-7.5-3.4 2.7-2.4-5.2-2.4 5.2-3.4-2.7L3 15.5Zm0 1.5a.5.5 0 0 0 0 1h14a.5.5 0 0 0 0-1H3Z"
+      />
+    </svg>
+  );
+
+  const renderName = (name: string, isCaptain: boolean) => (
+    <span
+      className={`inline-flex items-center gap-1 ${
+        isCaptain ? "text-amber-200 font-semibold" : ""
+      }`}
+    >
+      {isCaptain && (
+        <span className="inline-flex items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/10 p-1 text-amber-300">
+          <CrownIcon />
+        </span>
+      )}
+      <span>{name}</span>
+    </span>
+  );
+
   return (
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
       <SseListener code={updatedScrim.code} />
@@ -365,7 +394,7 @@ export default async function ScrimLobbyPage({
                           {initial}
                         </div>
                       )}
-                      <span>{displayName}</span>
+                      {renderName(displayName, player.isCaptain)}
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
@@ -375,9 +404,6 @@ export default async function ScrimLobbyPage({
                         <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
                           (~{ratingLabel})
                         </span>
-                      )}
-                      {player.isCaptain && (
-                        <span className="text-xs text-yellow-400">(C)</span>
                       )}
                     </div>
                     {canKickPlayers && !isSelf && (
@@ -429,7 +455,7 @@ export default async function ScrimLobbyPage({
                           {initial}
                         </div>
                       )}
-                      <span>{displayName}</span>
+                      {renderName(displayName, player.isCaptain)}
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
@@ -439,9 +465,6 @@ export default async function ScrimLobbyPage({
                         <span className="inline-flex items-center rounded-full border border-sky-500/40 bg-sky-900/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
                           (~{ratingLabel})
                         </span>
-                      )}
-                      {player.isCaptain && (
-                        <span className="text-xs text-yellow-400">(C)</span>
                       )}
                     </div>
                     {canKickPlayers && !isSelf && (
@@ -498,7 +521,7 @@ export default async function ScrimLobbyPage({
                         {initial}
                       </div>
                     )}
-                    <span>{displayName}</span>
+                    {renderName(displayName, player.isCaptain)}
                     {isPlaceholder && (
                       <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                         Placeholder

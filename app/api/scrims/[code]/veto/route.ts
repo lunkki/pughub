@@ -2,10 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getNextTeamABBA, type TeamSide, type VetoState, type VetoPhase } from "@/lib/veto";
+import { advanceVetoState, type TeamSide, type VetoState } from "@/lib/veto";
 import { getConnectPassword, launchScrimServer } from "@/lib/serverControl";
-
-const TURN_SECONDS = 40;
 
 export async function POST(
   req: NextRequest,
@@ -19,7 +17,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const scrim = await prisma.scrim.findUnique({
+  let scrim = await prisma.scrim.findUnique({
     where: { code },
     include: { players: true, server: true },
   });
@@ -39,6 +37,78 @@ export async function POST(
       { error: "Veto is not in progress" },
       { status: 400 }
     );
+  }
+
+  async function autoBanExpiredTurn(currentScrim: NonNullable<typeof scrim>) {
+    const state: VetoState | null = currentScrim.vetoState
+      ? JSON.parse(currentScrim.vetoState)
+      : null;
+
+    if (
+      !state ||
+      state.phase !== "IN_PROGRESS" ||
+      !state.turn ||
+      !state.deadline ||
+      state.pool.length === 0
+    ) {
+      return null;
+    }
+
+    if (new Date(state.deadline).getTime() > Date.now()) {
+      return null;
+    }
+
+    const banChoice = state.pool[Math.floor(Math.random() * state.pool.length)];
+
+    const { updatedState, statusUpdate, finalMap } = advanceVetoState({
+      state: { ...state, pendingVotes: undefined },
+      banChoice,
+      turnTeam: state.turn,
+      by: "RANDOM",
+    });
+
+    try {
+      const updateResult = await prisma.scrim.updateMany({
+        where: { id: currentScrim.id, vetoState: currentScrim.vetoState },
+        data: {
+          status: statusUpdate,
+          vetoState: JSON.stringify(updatedState),
+          ...(finalMap ? { selectedMap: finalMap } : {}),
+        },
+      });
+
+      if (updateResult.count === 0) {
+        return null;
+      }
+
+      if (finalMap && currentScrim.server) {
+        try {
+          await launchScrimServer({
+            address: currentScrim.server.rconAddress ?? currentScrim.server.address,
+            rconPassword: currentScrim.server.rconPassword,
+            map: finalMap,
+            connectPassword: getConnectPassword(),
+          });
+        } catch (err) {
+          console.error("Auto-veto RCON launch failed", err);
+        }
+      }
+
+      return {
+        ...currentScrim,
+        status: statusUpdate,
+        vetoState: JSON.stringify(updatedState),
+        ...(finalMap ? { selectedMap: finalMap } : {}),
+      };
+    } catch (err) {
+      console.error("Auto-veto update failed", err);
+      return null;
+    }
+  }
+
+  const autoScrim = scrim ? await autoBanExpiredTurn(scrim) : null;
+  if (autoScrim) {
+    scrim = autoScrim;
   }
 
   const player = scrim.players.find((p) => p.userId === user.id);
@@ -93,6 +163,8 @@ export async function POST(
   }
 
   // --- Player-vote veto mode ---
+  let baseState: VetoState | null = state ? { ...state, pendingVotes: undefined } : null;
+
   if (scrim.vetoMode === "PLAYERS") {
     if (!state) {
       return NextResponse.json(
@@ -152,48 +224,21 @@ export async function POST(
         : topMaps[Math.floor(Math.random() * topMaps.length)];
 
     // Clear pending votes for next turn
-    state = {
+    baseState = {
       ...stateNonNull,
       pendingVotes: undefined,
     };
   }
 
-  // --- Apply ban ---
-  const newPool = state.pool.filter((m) => m !== banChoice);
-  const newBanned = [...state.banned, { map: banChoice, by: myTeam }];
-
-  let newTurn: TeamSide | null = null;
-  let phase: VetoPhase = "IN_PROGRESS";
-  let finalMap: string | undefined;
-  let statusUpdate: "MAP_VETO" | "READY_TO_PLAY" = "MAP_VETO";
-
-  // Finish only when one map remains (let both teams ban down to a single map)
-  if (newPool.length <= 1) {
-    phase = "DONE";
-    newTurn = null;
-    finalMap = newPool[0] ?? banChoice;
-    statusUpdate = "READY_TO_PLAY";
-  } else {
-    // If exactly two maps remain, give the *other* team the final ban so they choose between the last two.
-    if (newPool.length === 2) {
-      newTurn = myTeam === "TEAM1" ? "TEAM2" : "TEAM1";
-    } else {
-      newTurn = getNextTeamABBA(newBanned.length);
-    }
+  if (!baseState) {
+    return NextResponse.json({ error: "Veto state missing" }, { status: 400 });
   }
 
-  const deadline = newTurn
-    ? new Date(Date.now() + TURN_SECONDS * 1000).toISOString()
-    : undefined;
-
-  const updatedState: VetoState = {
-    phase,
-    pool: newPool,
-    banned: newBanned,
-    turn: newTurn,
-    deadline,
-    ...(finalMap ? { finalMap } : {}),
-  };
+  const { updatedState, statusUpdate, finalMap } = advanceVetoState({
+    state: baseState,
+    banChoice,
+    turnTeam: myTeam,
+  });
 
   try {
     await prisma.scrim.update({

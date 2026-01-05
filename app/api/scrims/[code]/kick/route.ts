@@ -42,23 +42,26 @@ export async function POST(
   }
 
   const oldTeam = target.team;
+  const wasCaptain = target.isCaptain;
 
   await prisma.scrimPlayer.delete({
     where: { id: target.id },
   });
 
   if (oldTeam === "TEAM1" || oldTeam === "TEAM2") {
-    await prisma.scrimPlayer.updateMany({
-      where: { scrimId: scrim.id, team: oldTeam },
-      data: { isCaptain: false },
-    });
-
     const remaining = await prisma.scrimPlayer.findMany({
       where: { scrimId: scrim.id, team: oldTeam, isPlaceholder: false },
       orderBy: { joinedAt: "asc" },
     });
 
-    if (remaining.length > 0) {
+    const hasCaptain = remaining.some((p) => p.isCaptain);
+
+    if ((wasCaptain || !hasCaptain) && remaining[0]) {
+      await prisma.scrimPlayer.updateMany({
+        where: { scrimId: scrim.id, team: oldTeam },
+        data: { isCaptain: false },
+      });
+
       await prisma.scrimPlayer.update({
         where: { id: remaining[0].id },
         data: { isCaptain: true },

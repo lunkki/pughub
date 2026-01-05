@@ -25,6 +25,8 @@ export async function POST(
     return NextResponse.json({ error: "Scrim not found" }, { status: 404 });
   }
 
+  const scrimId = scrim.id;
+
   // 🔒 lock teams once we leave lobby
   if (scrim.status !== "LOBBY") {
     return NextResponse.json(
@@ -41,25 +43,35 @@ export async function POST(
     );
   }
 
+  const oldTeam = existing.team;
+
+  async function ensureTeamCaptain(team: "TEAM1" | "TEAM2") {
+    const playersInTeam = await prisma.scrimPlayer.findMany({
+      where: { scrimId, team, isPlaceholder: false },
+      orderBy: { joinedAt: "asc" },
+    });
+
+    const hasCaptain = playersInTeam.some((p) => p.isCaptain);
+    if (!hasCaptain && playersInTeam[0]) {
+      await prisma.scrimPlayer.update({
+        where: { id: playersInTeam[0].id },
+        data: { isCaptain: true },
+      });
+    }
+  }
+
   // Move player
   await prisma.scrimPlayer.update({
     where: { id: existing.id },
     data: { team, isCaptain: false },
   });
 
-  // Re-assign captain inside the team (first joiner becomes C)
+  // Ensure both the old team (if applicable) and the new team still have a captain
+  if (oldTeam === "TEAM1" || oldTeam === "TEAM2") {
+    await ensureTeamCaptain(oldTeam);
+  }
   if (team === "TEAM1" || team === "TEAM2") {
-    const playersInTeam = await prisma.scrimPlayer.findMany({
-      where: { scrimId: scrim.id, team, isPlaceholder: false },
-      orderBy: { joinedAt: "asc" },
-    });
-
-    if (playersInTeam.length > 0) {
-      await prisma.scrimPlayer.update({
-        where: { id: playersInTeam[0].id },
-        data: { isCaptain: true },
-      });
-    }
+    await ensureTeamCaptain(team);
   }
 
   // Touch scrim updatedAt so lobby reflects recent changes
