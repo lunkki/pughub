@@ -14,7 +14,7 @@ export type VetoState = {
   pendingVotes?: {
     team: TeamSide;
     turn: number;
-    selections: Record<string, string>; // userId -> map pick
+    selections: Record<string, string[]>; // userId -> map picks
   };
 };
 
@@ -25,7 +25,7 @@ const EMPTY_STATE: VetoState = {
   turn: null,
 };
 
-export const VETO_TURN_SECONDS = 40;
+export const VETO_TURN_SECONDS = 30;
 
 export function parseVetoState(raw: string | null): VetoState {
   if (!raw) {
@@ -34,6 +34,24 @@ export function parseVetoState(raw: string | null): VetoState {
 
   try {
     const parsed = JSON.parse(raw) as Partial<VetoState>;
+    const rawPending = parsed.pendingVotes as
+      | { team?: TeamSide; turn?: number; selections?: Record<string, string[] | string> }
+      | undefined;
+    let pendingVotes: VetoState["pendingVotes"] | undefined;
+
+    if (rawPending && rawPending.team && typeof rawPending.turn === "number") {
+      const selections: Record<string, string[]> = {};
+      if (rawPending.selections && typeof rawPending.selections === "object") {
+        for (const [userId, selection] of Object.entries(rawPending.selections)) {
+          if (Array.isArray(selection)) {
+            selections[userId] = selection.filter((m) => typeof m === "string");
+          } else if (typeof selection === "string") {
+            selections[userId] = [selection];
+          }
+        }
+      }
+      pendingVotes = { team: rawPending.team, turn: rawPending.turn, selections };
+    }
 
     return {
       phase: parsed.phase ?? "NOT_STARTED",
@@ -42,7 +60,7 @@ export function parseVetoState(raw: string | null): VetoState {
       turn: parsed.turn ?? null,
       ...(parsed.deadline ? { deadline: parsed.deadline } : {}),
       ...(parsed.finalMap ? { finalMap: parsed.finalMap } : {}),
-      ...(parsed.pendingVotes ? { pendingVotes: parsed.pendingVotes } : {}),
+      ...(pendingVotes ? { pendingVotes } : {}),
     };
   } catch {
     return { ...EMPTY_STATE };
@@ -53,6 +71,22 @@ export function parseVetoState(raw: string | null): VetoState {
 export function getNextTeamABBA(banCount: number): TeamSide {
   const pattern: TeamSide[] = ["TEAM1", "TEAM2", "TEAM2", "TEAM1"];
   return pattern[banCount % pattern.length];
+}
+
+export function getVetoVoteLimit(state: VetoState): number {
+  if (state.phase !== "IN_PROGRESS" || !state.turn) return 1;
+
+  const poolAfterFirst = state.pool.length - 1;
+  if (poolAfterFirst <= 1) return 1;
+
+  const nextTurn =
+    poolAfterFirst === 2
+      ? state.turn === "TEAM1"
+        ? "TEAM2"
+        : "TEAM1"
+      : getNextTeamABBA(state.banned.length + 1);
+
+  return nextTurn === state.turn ? 2 : 1;
 }
 
 export function advanceVetoState({

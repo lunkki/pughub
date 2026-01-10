@@ -2,8 +2,122 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { advanceVetoState, type TeamSide, type VetoState } from "@/lib/veto";
+import {
+  advanceVetoState,
+  getVetoVoteLimit,
+  type TeamSide,
+  type VetoState,
+} from "@/lib/veto";
 import { getConnectPassword, launchScrimServer } from "@/lib/serverControl";
+
+function normalizeSelections(
+  selections?: Record<string, string[] | string>
+): Record<string, string[]> {
+  if (!selections) return {};
+  const normalized: Record<string, string[]> = {};
+  for (const [userId, selection] of Object.entries(selections)) {
+    if (Array.isArray(selection)) {
+      normalized[userId] = selection.filter((m) => typeof m === "string");
+    } else if (typeof selection === "string") {
+      normalized[userId] = [selection];
+    }
+  }
+  return normalized;
+}
+
+function pickRandomMaps(pool: string[], count: number): string[] {
+  const remaining = [...pool];
+  const picks: string[] = [];
+  while (picks.length < count && remaining.length > 0) {
+    const index = Math.floor(Math.random() * remaining.length);
+    picks.push(remaining.splice(index, 1)[0]);
+  }
+  return picks;
+}
+
+function pickTopMaps(
+  counts: Record<string, number>,
+  pool: string[],
+  count: number
+): string[] {
+  const available = new Set(pool);
+  const picks: string[] = [];
+
+  for (let i = 0; i < count; i += 1) {
+    let max = -1;
+    const top: string[] = [];
+    for (const map of available) {
+      const votes = counts[map] ?? 0;
+      if (votes > max) {
+        max = votes;
+        top.length = 0;
+        top.push(map);
+      } else if (votes === max) {
+        top.push(map);
+      }
+    }
+    if (top.length === 0) break;
+    const choice = top[Math.floor(Math.random() * top.length)];
+    picks.push(choice);
+    available.delete(choice);
+  }
+
+  if (picks.length < count) {
+    const remaining = pool.filter((m) => !picks.includes(m));
+    picks.push(...pickRandomMaps(remaining, count - picks.length));
+  }
+
+  return picks;
+}
+
+type BanChoice = { map: string; by: TeamSide | "RANDOM" };
+
+function pickTimedOutBansFromVotes(
+  state: VetoState,
+  team: TeamSide,
+  banCount: number
+): BanChoice[] {
+  if (
+    !state.pendingVotes ||
+    state.pendingVotes.team !== team ||
+    state.pendingVotes.turn !== state.banned.length
+  ) {
+    return pickRandomMaps(state.pool, banCount).map((map) => ({
+      map,
+      by: "RANDOM",
+    }));
+  }
+
+  const selections = normalizeSelections(state.pendingVotes.selections);
+  const counts: Record<string, number> = {};
+  Object.values(selections).forEach((maps) => {
+    maps.forEach((map) => {
+      if (!state.pool.includes(map)) return;
+      counts[map] = (counts[map] ?? 0) + 1;
+    });
+  });
+
+  const votedMaps = Object.keys(counts).filter((map) => state.pool.includes(map));
+  if (votedMaps.length === 0) {
+    return pickRandomMaps(state.pool, banCount).map((map) => ({
+      map,
+      by: "RANDOM",
+    }));
+  }
+
+  const picks = pickTopMaps(counts, votedMaps, banCount);
+  const results: BanChoice[] = picks.map((map) => ({ map, by: team }));
+
+  if (results.length < banCount) {
+    const remaining = state.pool.filter(
+      (map) => !results.some((pick) => pick.map === map)
+    );
+    const randomPicks = pickRandomMaps(remaining, banCount - results.length);
+    randomPicks.forEach((map) => results.push({ map, by: "RANDOM" }));
+  }
+
+  return results;
+}
 
 export async function POST(
   req: NextRequest,
@@ -58,21 +172,40 @@ export async function POST(
       return null;
     }
 
-    const banChoice = state.pool[Math.floor(Math.random() * state.pool.length)];
+    const banCount =
+      currentScrim.vetoMode === "PLAYERS" ? getVetoVoteLimit(state) : 1;
+    const banChoices: BanChoice[] =
+      currentScrim.vetoMode === "PLAYERS"
+        ? pickTimedOutBansFromVotes(state, state.turn, banCount)
+        : pickRandomMaps(state.pool, 1).map((map) => ({ map, by: "RANDOM" }));
 
-    const { updatedState, statusUpdate, finalMap } = advanceVetoState({
-      state: { ...state, pendingVotes: undefined },
-      banChoice,
-      turnTeam: state.turn,
-      by: "RANDOM",
-    });
+    let workingState: VetoState = { ...state, pendingVotes: undefined };
+    let statusUpdate: "MAP_VETO" | "READY_TO_PLAY" = "MAP_VETO";
+    let finalMap: string | undefined;
+
+    for (const banChoice of banChoices) {
+      const result = advanceVetoState({
+        state: workingState,
+        banChoice: banChoice.map,
+        turnTeam: state.turn,
+        by: banChoice.by,
+      });
+      workingState = result.updatedState;
+      statusUpdate = result.statusUpdate;
+      if (result.finalMap) {
+        finalMap = result.finalMap;
+      }
+      if (workingState.phase === "DONE" || workingState.turn !== state.turn) {
+        break;
+      }
+    }
 
     try {
       const updateResult = await prisma.scrim.updateMany({
         where: { id: currentScrim.id, vetoState: currentScrim.vetoState },
         data: {
           status: statusUpdate,
-          vetoState: JSON.stringify(updatedState),
+          vetoState: JSON.stringify(workingState),
           ...(finalMap ? { selectedMap: finalMap } : {}),
         },
       });
@@ -97,7 +230,7 @@ export async function POST(
       return {
         ...currentScrim,
         status: statusUpdate,
-        vetoState: JSON.stringify(updatedState),
+        vetoState: JSON.stringify(workingState),
         ...(finalMap ? { selectedMap: finalMap } : {}),
       };
     } catch (err) {
@@ -131,7 +264,6 @@ export async function POST(
 
   const body = await req.json();
   const { action, map } = body as { action: "BAN"; map: string };
-  let banChoice = map;
 
   let state: VetoState | null = scrim.vetoState
     ? JSON.parse(scrim.vetoState)
@@ -162,8 +294,9 @@ export async function POST(
     );
   }
 
-  // --- Player-vote veto mode ---
-  let baseState: VetoState | null = state ? { ...state, pendingVotes: undefined } : null;
+  let updatedState: VetoState | null = null;
+  let statusUpdate: "MAP_VETO" | "READY_TO_PLAY" | null = null;
+  let finalMap: string | undefined;
 
   if (scrim.vetoMode === "PLAYERS") {
     if (!state) {
@@ -176,20 +309,45 @@ export async function POST(
     const teamPlayers = scrim.players.filter(
       (p) => p.team === myTeam && !p.isPlaceholder && p.userId
     );
-    const totalVoters = Math.max(teamPlayers.length, 1);
     const currentTurn = stateNonNull.banned.length;
+    const voteLimit = getVetoVoteLimit(stateNonNull);
 
     const isSameTurnPending =
       stateNonNull.pendingVotes &&
       stateNonNull.pendingVotes.turn === currentTurn &&
       stateNonNull.pendingVotes.team === myTeam;
 
-    const selections = {
-      ...(isSameTurnPending ? stateNonNull.pendingVotes?.selections ?? {} : {}),
-      [user.id]: banChoice,
-    };
+    const existingSelections = normalizeSelections(
+      isSameTurnPending ? stateNonNull.pendingVotes?.selections : undefined
+    );
+    const userSelections = new Set(existingSelections[user.id] ?? []);
 
-    const allVoted = Object.keys(selections).length >= totalVoters;
+    if (userSelections.has(map)) {
+      userSelections.delete(map);
+    } else {
+      userSelections.add(map);
+      if (userSelections.size > voteLimit) {
+        return NextResponse.json(
+          { error: `You can vote for up to ${voteLimit} maps` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const selections = { ...existingSelections };
+    if (userSelections.size === 0) {
+      delete selections[user.id];
+    } else {
+      selections[user.id] = Array.from(userSelections);
+    }
+
+    const voterIds = teamPlayers
+      .map((p) => p.userId)
+      .filter((id): id is string => Boolean(id));
+    const activeVoters = voterIds.length > 0 ? voterIds : [user.id];
+    const allVoted = activeVoters.every(
+      (id) => (selections[id]?.length ?? 0) >= voteLimit
+    );
 
     if (!allVoted) {
       const pendingState: VetoState = {
@@ -207,38 +365,55 @@ export async function POST(
       return NextResponse.json({ ok: true, state: pendingState, pending: true });
     }
 
-    // All votes in -> pick the map with most votes (ties broken randomly)
+    // All votes in -> pick top maps by vote (ties broken randomly)
     const counts: Record<string, number> = {};
-    Object.values(selections).forEach((m) => {
-      counts[m] = (counts[m] ?? 0) + 1;
+    Object.values(selections).forEach((maps) => {
+      maps.forEach((m) => {
+        counts[m] = (counts[m] ?? 0) + 1;
+      });
     });
-    const maxVotes = Math.max(...Object.values(counts));
-    const topMaps = Object.entries(counts)
-      .filter(([_, v]) => v === maxVotes)
-      .map(([m]) => m)
-      .filter((m) => stateNonNull.pool.includes(m));
+    const banChoices = pickTopMaps(counts, stateNonNull.pool, voteLimit);
 
-    banChoice =
-      topMaps.length === 0
-        ? stateNonNull.pool[0]
-        : topMaps[Math.floor(Math.random() * topMaps.length)];
-
-    // Clear pending votes for next turn
-    baseState = {
+    let workingState: VetoState = {
       ...stateNonNull,
       pendingVotes: undefined,
     };
+    let workingStatus: "MAP_VETO" | "READY_TO_PLAY" = "MAP_VETO";
+    let workingFinal: string | undefined;
+
+    for (const banChoice of banChoices) {
+      const result = advanceVetoState({
+        state: workingState,
+        banChoice,
+        turnTeam: myTeam,
+      });
+      workingState = result.updatedState;
+      workingStatus = result.statusUpdate;
+      if (result.finalMap) {
+        workingFinal = result.finalMap;
+      }
+      if (workingState.phase === "DONE" || workingState.turn !== myTeam) {
+        break;
+      }
+    }
+
+    updatedState = workingState;
+    statusUpdate = workingStatus;
+    finalMap = workingFinal;
+  } else {
+    const result = advanceVetoState({
+      state: { ...state, pendingVotes: undefined },
+      banChoice: map,
+      turnTeam: myTeam,
+    });
+    updatedState = result.updatedState;
+    statusUpdate = result.statusUpdate;
+    finalMap = result.finalMap;
   }
 
-  if (!baseState) {
+  if (!updatedState || !statusUpdate) {
     return NextResponse.json({ error: "Veto state missing" }, { status: 400 });
   }
-
-  const { updatedState, statusUpdate, finalMap } = advanceVetoState({
-    state: baseState,
-    banChoice,
-    turnTeam: myTeam,
-  });
 
   try {
     await prisma.scrim.update({

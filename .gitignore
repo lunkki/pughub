@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local helper scripts
 /scripts/test-deploy.ps1
+/scripts/dev.ps1
+Dockerfile.dev
+docker-compose.dev.yml

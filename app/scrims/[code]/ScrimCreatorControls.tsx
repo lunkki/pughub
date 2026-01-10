@@ -121,9 +121,7 @@ export function ScrimCreatorControls({
           disabled={locked}
         >
           <option value="CAPTAINS">Captain Veto</option>
-          <option value="PLAYERS" disabled>
-            Players Vote (work in progress)
-          </option>
+          <option value="PLAYERS">Players Vote</option>
         </select>
       </div>
 

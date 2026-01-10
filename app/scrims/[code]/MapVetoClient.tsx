@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MAPS } from "@/lib/maps";
-import type { TeamSide, VetoState } from "@/lib/veto";
+import { getVetoVoteLimit, type TeamSide, type VetoState } from "@/lib/veto";
 
 type Props = {
   scrimCode: string;
@@ -12,10 +12,11 @@ type Props = {
   state: VetoState | null;
   myTeam?: TeamSide | null;
   vetoMode?: "CAPTAINS" | "PLAYERS";
+  currentUserId?: string;
   players?: {
     id: string;
     team: TeamSide | "WAITING_ROOM";
-    user: { avatarUrl?: string | null; displayName: string };
+    user: { id: string; avatarUrl?: string | null; displayName: string };
   }[];
 };
 
@@ -25,6 +26,7 @@ export function MapVetoClient({
   state,
   myTeam = null,
   vetoMode = "CAPTAINS",
+  currentUserId,
   players = [],
 }: Props) {
   const router = useRouter();
@@ -61,10 +63,15 @@ export function MapVetoClient({
     () => players.filter((p) => p.team === myTeam),
     [players, myTeam]
   );
-  const voteSelections =
-    state?.pendingVotes && state.pendingVotes.team === myTeam
+  const voteLimit = state ? getVetoVoteLimit(state) : 1;
+  const currentTurn = state?.banned.length ?? 0;
+  const voteSelections: Record<string, string[]> =
+    state?.pendingVotes &&
+    state.pendingVotes.team === myTeam &&
+    state.pendingVotes.turn === currentTurn
       ? state.pendingVotes.selections
       : {};
+  const mySelections = currentUserId ? voteSelections[currentUserId] ?? [] : [];
 
   async function banMap(map: string) {
     if (!state || !isMyTurn || busy || state.phase !== "IN_PROGRESS") return;
@@ -135,16 +142,19 @@ export function MapVetoClient({
             : isFinal
               ? true
               : state?.pool.includes(mapId) ?? false;
+          const isSelected =
+            vetoMode === "PLAYERS" && mySelections.includes(mapId);
           const canBan =
             !banInfo &&
             inPool &&
             state?.phase === "IN_PROGRESS" &&
             isMyTurn &&
-            !busy;
+            !busy &&
+            (vetoMode !== "PLAYERS" || isSelected || mySelections.length < voteLimit);
           const mapVotes =
             vetoMode === "PLAYERS"
               ? teamPlayers.filter(
-                  (p) => voteSelections && voteSelections[p.id] === mapId
+                  (p) => voteSelections && voteSelections[p.user.id]?.includes(mapId)
                 )
               : [];
 
@@ -157,7 +167,9 @@ export function MapVetoClient({
                   : banInfo
                     ? "border-slate-800"
                     : "border-slate-700"
-              } ${canBan ? "hover:scale-[1.01]" : ""}`}
+              } ${isSelected ? "ring-2 ring-amber-400/80" : ""} ${
+                canBan ? "hover:scale-[1.01]" : ""
+              }`}
             >
               <button
                 type="button"
