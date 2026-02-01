@@ -11,6 +11,7 @@ import { ScrimCreatorControls } from "./ScrimCreatorControls";
 import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
 import { PlaceholderPlayerForm } from "./PlaceholderPlayerForm";
+import { CopyConnectButton } from "./CopyConnectButton";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
 import { canManageLobbyPlayers, canManageServers, canStartScrim } from "@/lib/permissions";
@@ -270,6 +271,45 @@ export default async function ScrimLobbyPage({
   };
 
   const canKickPlayers = isCreator || canManageLobbyPlayersUser;
+  const pickPhase = updatedScrim.pickPhase;
+  const pickPhaseStarted = updatedScrim.pickPhaseStarted;
+  const team1PickCount = team1.filter((p) => !p.isCaptain).length;
+  const team2PickCount = team2.filter((p) => !p.isCaptain).length;
+  const pickIndex = team1PickCount + team2PickCount;
+  let pickTurnTeam: TeamSide | null = null;
+  let pickTurnCount = 1;
+  if (
+    pickPhase === "PHASED_PICK" &&
+    updatedScrim.status === "LOBBY" &&
+    pickPhaseStarted
+  ) {
+    if (pickIndex === 0) {
+      pickTurnTeam = "TEAM1";
+      pickTurnCount = 1;
+    } else if (pickIndex === 1 || pickIndex === 2) {
+      pickTurnTeam = "TEAM2";
+      pickTurnCount = pickIndex === 1 ? 2 : 1;
+    } else {
+      pickTurnTeam = pickIndex % 2 === 1 ? "TEAM1" : "TEAM2";
+      pickTurnCount = 1;
+    }
+  }
+  const myPickTurn =
+    pickPhase === "PHASED_PICK" &&
+    pickPhaseStarted &&
+    pickTurnTeam &&
+    currentUserTeam === pickTurnTeam;
+  const pickTurnLabel = pickTurnTeam
+    ? pickTurnTeam === "TEAM1"
+      ? "Team 1"
+      : "Team 2"
+    : "-";
+  const pickTurnVerb = pickTurnCount === 1 ? "one player" : "two players";
+  const pickTurnHint = pickPhaseStarted
+    ? myPickTurn
+      ? `Your turn to pick ${pickTurnVerb}.`
+      : `${pickTurnLabel} is picking ${pickTurnVerb}.`
+    : "Waiting for the creator to start.";
   const getPlayerMeta = (player: (typeof updatedScrim.players)[number]) => {
     const displayName =
       player.user?.displayName || player.displayName || "Unknown player";
@@ -350,8 +390,11 @@ export default async function ScrimLobbyPage({
               </span>
             )}
             {finalConnectString && (
-              <span className="rounded-full border border-cyan-600/70 bg-cyan-900/30 px-3 py-1 text-xs font-semibold text-cyan-100">
-                {finalConnectString}
+              <span className="inline-flex items-stretch overflow-hidden rounded-lg border border-cyan-600/70 bg-cyan-900/30 text-xs font-semibold text-cyan-100">
+                <span className="px-3 py-2 font-mono">
+                  {finalConnectString}
+                </span>
+                <CopyConnectButton text={finalConnectString} />
               </span>
             )}
           </div>
@@ -380,6 +423,8 @@ export default async function ScrimLobbyPage({
                   scrim={{
                     code: updatedScrim.code,
                     vetoMode: updatedScrim.vetoMode,
+                    pickPhase: updatedScrim.pickPhase,
+                    pickPhaseStarted: updatedScrim.pickPhaseStarted,
                     status: updatedScrim.status,
                     serverId: updatedScrim.serverId,
                   }}
@@ -581,6 +626,28 @@ export default async function ScrimLobbyPage({
               )}
             </div>
 
+            {pickPhase === "PHASED_PICK" && (
+              <div className="mb-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-300">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="uppercase tracking-[0.2em] text-slate-400">
+                    Phased pick
+                  </span>
+                  <span className="text-slate-200">
+                    Turn: {pickPhaseStarted ? pickTurnLabel : "Not started"}
+                  </span>
+                </div>
+                <div className="mt-2 text-slate-400">
+                  {myPickTurn ? (
+                    <span className="font-semibold text-emerald-300">
+                      {pickTurnHint}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">{pickTurnHint}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {waiting.length === 0 && (
               <p className="text-sm text-slate-400">
                 No players in waiting room.
@@ -649,6 +716,10 @@ export default async function ScrimLobbyPage({
                       <PickButton
                         scrimCode={updatedScrim.code}
                         targetPlayerId={player.id}
+                        disabled={
+                          pickPhase === "PHASED_PICK" &&
+                          (!pickPhaseStarted || !myPickTurn)
+                        }
                       />
                     )}
                     {canKickPlayers && !isSelf && (

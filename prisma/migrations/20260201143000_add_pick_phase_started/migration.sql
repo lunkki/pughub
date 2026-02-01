@@ -1,0 +1,1 @@
+ALTER TABLE "Scrim" ADD COLUMN "pickPhaseStarted" BOOLEAN NOT NULL DEFAULT false;

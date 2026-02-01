@@ -4,12 +4,15 @@ import { Button } from "@/app/components/ui/Button";
 
 export function PickButton({
   scrimCode,
-  targetPlayerId
+  targetPlayerId,
+  disabled = false,
 }: {
   scrimCode: string;
   targetPlayerId: string;
+  disabled?: boolean;
 }) {
   async function pick() {
+    if (disabled) return;
     await fetch(`/api/scrims/${scrimCode}/pick`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -21,6 +24,7 @@ export function PickButton({
   return (
     <Button
       onClick={pick}
+      disabled={disabled}
       className="bg-amber-400 text-slate-950 hover:bg-amber-300 active:scale-[0.98]"
     >
       Pick

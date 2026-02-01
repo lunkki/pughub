@@ -70,6 +70,8 @@ model Scrim {
   updatedAt      DateTime      @updatedAt   
   vetoMode   VetoMode @default(CAPTAINS)
   vetoState    String?       
+  pickPhase   PickPhase @default(CAPTAIN_FREEPICK)
+  pickPhaseStarted Boolean @default(false)
 
 
 }
@@ -130,4 +132,11 @@ enum Team {
 enum VetoMode {
   CAPTAINS
   PLAYERS
+}
+
+enum PickPhase {
+  CAPTAIN_FREEPICK
+  PHASED_PICK
+  SCRAMBLE
+  RANDOM
 }

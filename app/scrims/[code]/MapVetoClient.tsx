@@ -51,6 +51,14 @@ export function MapVetoClient({
 
   const isMyTurn =
     !!myTeam && state?.turn === myTeam && state?.phase === "IN_PROGRESS";
+  const timerClass =
+    timeLeft === null
+      ? "text-slate-300"
+      : timeLeft <= 5
+        ? "text-rose-300"
+        : timeLeft <= 15
+          ? "text-amber-300"
+          : "text-emerald-300";
 
   const orderedMaps = useMemo(() => {
     if (mapPool.length > 0) return mapPool;
@@ -72,6 +80,21 @@ export function MapVetoClient({
       ? state.pendingVotes.selections
       : {};
   const mySelections = currentUserId ? voteSelections[currentUserId] ?? [] : [];
+  const turnTeamLabel = state?.turn
+    ? state.turn.replace("TEAM", "Team ")
+    : "Team";
+  const vetoHint =
+    !state || state.phase !== "IN_PROGRESS"
+      ? null
+      : vetoMode === "PLAYERS"
+        ? isMyTurn
+          ? `Your team is voting. Select up to ${voteLimit} map${
+              voteLimit === 1 ? "" : "s"
+            }.`
+          : `${turnTeamLabel} is voting now.`
+        : isMyTurn
+          ? "Your turn to ban one map."
+          : `${turnTeamLabel} is banning now.`;
 
   async function banMap(map: string) {
     if (!state || !isMyTurn || busy || state.phase !== "IN_PROGRESS") return;
@@ -109,18 +132,20 @@ export function MapVetoClient({
           </p>
         </div>
         {state?.phase === "IN_PROGRESS" && (
-          <div className="text-xs text-slate-300">
-            {isMyTurn ? (
-              <>
-                Your team is banning{vetoMode === "CAPTAINS" && " (captain)"}
-                {timeLeft !== null && (
-                  <> · <span className="font-mono">{timeLeft}s</span> left</>
-                )}
-              </>
-            ) : (
-              <>
-                Waiting for <span className="font-semibold">{state.turn ?? "other team"}</span>
-              </>
+          <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-300">
+            {vetoHint && <span className="font-medium">{vetoHint}</span>}
+            {timeLeft !== null && (
+              <span
+                className={`inline-flex items-center rounded-xl border px-4 py-2 text-lg font-semibold shadow ${timerClass} ${
+                  timeLeft <= 5
+                    ? "border-rose-400/40 bg-rose-500/20"
+                    : timeLeft <= 15
+                      ? "border-amber-400/40 bg-amber-500/20"
+                      : "border-emerald-400/40 bg-emerald-500/20"
+                }`}
+              >
+                {timeLeft}s
+              </span>
             )}
           </div>
         )}
@@ -151,6 +176,12 @@ export function MapVetoClient({
             isMyTurn &&
             !busy &&
             (vetoMode !== "PLAYERS" || isSelected || mySelections.length < voteLimit);
+          const showVoteBadge =
+            vetoMode === "PLAYERS" &&
+            state?.phase === "IN_PROGRESS" &&
+            isMyTurn &&
+            inPool &&
+            !banInfo;
           const mapVotes =
             vetoMode === "PLAYERS"
               ? teamPlayers.filter(
@@ -230,7 +261,12 @@ export function MapVetoClient({
                   )}
                 </div>
               )}
-              {canBan && (
+              {showVoteBadge && (
+                <div className="ph-animate-in absolute top-2 right-2 rounded bg-amber-500/90 px-2 py-1 text-[11px] font-semibold text-amber-50 shadow">
+                  Pick ({mySelections.length}/{voteLimit})
+                </div>
+              )}
+              {!showVoteBadge && canBan && (
                 <div className="ph-animate-in absolute top-2 right-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-emerald-50 shadow">
                   Ban
                 </div>
