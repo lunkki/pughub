@@ -71,7 +71,9 @@ export async function Shell({ children }: { children: React.ReactNode }) {
                   alt="avatar"
                   className="h-8 w-8 rounded-full border border-slate-700"
                 />
-                <span>{user.displayName}</span>
+                <Link href="/profile" className="hover:text-sky-400">
+                  {user.displayName}
+                </Link>
                 <Button asChild variant="outline">
                   <a href="/api/auth/logout">Logout</a>
                 </Button>

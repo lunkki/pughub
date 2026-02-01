@@ -239,9 +239,12 @@ export default async function MatchesPage() {
                                                 {initial}
                                               </div>
                                             )}
-                                            <span className="font-medium text-slate-100">
+                                            <Link
+                                              href={`/profile/${player.steamId64}`}
+                                              className="font-medium text-slate-100 hover:text-sky-200"
+                                            >
                                               {displayName}
-                                            </span>
+                                            </Link>
                                           </div>
                                         </td>
                                         <td className="px-2 py-2 text-slate-200">{player.kills}</td>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export type LeaderboardRow = {
@@ -224,20 +225,25 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
                 <td className="px-4 py-3 text-slate-400">{index + 1}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {player.avatarUrl ? (
-                      <img
-                        src={player.avatarUrl}
-                        alt={`${player.displayName} avatar`}
-                        className="h-8 w-8 rounded-full border border-slate-700 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-semibold text-slate-300">
-                        {initial}
+                    <Link
+                      href={`/profile/${player.steamId64}`}
+                      className="flex items-center gap-3 hover:text-sky-200"
+                    >
+                      {player.avatarUrl ? (
+                        <img
+                          src={player.avatarUrl}
+                          alt={`${player.displayName} avatar`}
+                          className="h-8 w-8 rounded-full border border-slate-700 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-semibold text-slate-300">
+                          {initial}
+                        </div>
+                      )}
+                      <div className="font-medium text-slate-100">
+                        {player.displayName}
                       </div>
-                    )}
-                    <div className="font-medium text-slate-100">
-                      {player.displayName}
-                    </div>
+                    </Link>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right text-slate-200">

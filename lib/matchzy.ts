@@ -97,6 +97,19 @@ export type PlayerLeaderboardEntry = {
   rating: number | null;
 };
 
+export type PlayerTotals = {
+  steamId64: string;
+  matches: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  headshotKills: number;
+  clutchWins: number;
+  rounds: number;
+  rating: number | null;
+};
+
 type MatchRow = RowDataPacket & {
   matchid: number;
   start_time: Date | string | null;
@@ -198,6 +211,20 @@ type PlayerSummaryRow = RowDataPacket & {
 type MatchRoundsRow = RowDataPacket & {
   matchid: number;
   rounds: number;
+};
+
+type PlayerTotalsRow = RowDataPacket & {
+  matches: number | null;
+  kills: number | null;
+  deaths: number | null;
+  assists: number | null;
+  damage: number | null;
+  headshot_kills: number | null;
+  clutch_wins: number | null;
+};
+
+type RoundsTotalRow = RowDataPacket & {
+  rounds: number | null;
 };
 
 type MatchzyConfig =
@@ -794,4 +821,57 @@ export async function fetchRecentPlayerMatchSummaries(
       rounds: roundsByMatch.get(matchId) ?? 0,
     };
   });
+}
+
+export async function fetchPlayerTotals(
+  steamId64: string
+): Promise<PlayerTotals | null> {
+  const db = getMatchzyPool();
+  const [totalRows] = await db.query<PlayerTotalsRow[]>(
+    `SELECT COUNT(DISTINCT matchid) AS matches,
+            SUM(kills) AS kills,
+            SUM(deaths) AS deaths,
+            SUM(assists) AS assists,
+            SUM(damage) AS damage,
+            SUM(head_shot_kills) AS headshot_kills,
+            SUM(v1_wins + v2_wins) AS clutch_wins
+     FROM matchzy_stats_players
+     WHERE steamid64 = ?`,
+    [steamId64]
+  );
+
+  if (!totalRows.length) return null;
+
+  const totals = totalRows[0];
+  const [roundRows] = await db.query<RoundsTotalRow[]>(
+    `SELECT SUM(team1_score + team2_score) AS rounds
+     FROM matchzy_stats_maps
+     WHERE matchid IN (
+       SELECT DISTINCT matchid FROM matchzy_stats_players WHERE steamid64 = ?
+     )`,
+    [steamId64]
+  );
+
+  const rounds = roundRows[0]?.rounds ?? 0;
+  const stats = {
+    kills: toNumber(totals.kills),
+    deaths: toNumber(totals.deaths),
+    assists: toNumber(totals.assists),
+    damage: toNumber(totals.damage),
+    clutchWins: toNumber(totals.clutch_wins),
+  };
+  const rating = getRatingFromTotals(stats, rounds);
+
+  return {
+    steamId64,
+    matches: toNumber(totals.matches),
+    kills: stats.kills,
+    deaths: stats.deaths,
+    assists: stats.assists,
+    damage: stats.damage,
+    headshotKills: toNumber(totals.headshot_kills),
+    clutchWins: stats.clutchWins,
+    rounds: toNumber(rounds),
+    rating,
+  };
 }
