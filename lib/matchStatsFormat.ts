@@ -42,7 +42,11 @@ function getSeriesTargetWins(seriesType: string) {
 
 export function getMatchWinner(match: MatchWinnerSource) {
   const storedWinner = match.winner.trim();
-  if (storedWinner) return storedWinner;
+  if (storedWinner) {
+    const normalized = storedWinner.toLowerCase();
+    const invalid = new Set(["open", "pending", "tbd", "unknown", "in_progress"]);
+    if (!invalid.has(normalized)) return storedWinner;
+  }
 
   const team1Score = match.team1Score;
   const team2Score = match.team2Score;

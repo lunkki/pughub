@@ -79,6 +79,16 @@ export type PlayerMatchSummary = {
   damage: number;
   clutchWins: number;
   rounds: number;
+  teamSide?: "team1" | "team2" | null;
+  winnerSide?: "team1" | "team2" | null;
+  mapName?: string;
+  mapTeam1Score?: number;
+  mapTeam2Score?: number;
+  team1Score?: number;
+  team2Score?: number;
+  team1Name?: string;
+  team2Name?: string;
+  win?: boolean | null;
 };
 
 export type PlayerLeaderboardEntry = {
@@ -201,6 +211,7 @@ type LeaderboardPlayerRow = RowDataPacket & {
 type PlayerSummaryRow = RowDataPacket & {
   matchid: number;
   steamid64: string;
+  team: string | null;
   kills: number;
   deaths: number;
   assists: number;
@@ -409,20 +420,44 @@ function buildMatchStats(
     playersByMatch.get(matchId)?.push(entry);
   }
 
-  return matches.map((row) => ({
-    matchId: toNumber(row.matchid),
-    startTime: toDate(row.start_time),
-    endTime: toDate(row.end_time),
-    winner: row.winner ?? "",
-    seriesType: row.series_type ?? "",
-    team1Name: row.team1_name ?? "",
-    team2Name: row.team2_name ?? "",
-    team1Score: toNumber(row.team1_score),
-    team2Score: toNumber(row.team2_score),
-    serverIp: row.server_ip ?? "",
-    maps: mapsByMatch.get(toNumber(row.matchid)) ?? [],
-    players: playersByMatch.get(toNumber(row.matchid)) ?? [],
-  }));
+  return matches.map((row) => {
+    const matchId = toNumber(row.matchid);
+    const matchMaps = mapsByMatch.get(matchId) ?? [];
+    const summedMapScores = matchMaps.reduce(
+      (acc, map) => ({
+        team1Score: acc.team1Score + map.team1Score,
+        team2Score: acc.team2Score + map.team2Score,
+      }),
+      { team1Score: 0, team2Score: 0 }
+    );
+    const rawTeam1Score = toNumber(row.team1_score);
+    const rawTeam2Score = toNumber(row.team2_score);
+    const hasMapScores =
+      summedMapScores.team1Score + summedMapScores.team2Score > 0;
+    const resolvedTeam1Score =
+      rawTeam1Score === 0 && rawTeam2Score === 0 && hasMapScores
+        ? summedMapScores.team1Score
+        : rawTeam1Score;
+    const resolvedTeam2Score =
+      rawTeam1Score === 0 && rawTeam2Score === 0 && hasMapScores
+        ? summedMapScores.team2Score
+        : rawTeam2Score;
+
+    return {
+      matchId,
+      startTime: toDate(row.start_time),
+      endTime: toDate(row.end_time),
+      winner: row.winner ?? "",
+      seriesType: row.series_type ?? "",
+      team1Name: row.team1_name ?? "",
+      team2Name: row.team2_name ?? "",
+      team1Score: resolvedTeam1Score,
+      team2Score: resolvedTeam2Score,
+      serverIp: row.server_ip ?? "",
+      maps: matchMaps,
+      players: playersByMatch.get(matchId) ?? [],
+    };
+  });
 }
 
 export async function fetchMatchStats(limit = 25): Promise<MatchStats[]> {
@@ -580,6 +615,13 @@ export async function fetchPlayerLeaderboard(
   const placeholders = matchIds.map(() => "?").join(",");
   const [roundRows] = await db.query<MatchRoundsRow[]>(
     `SELECT matchid, SUM(team1_score + team2_score) AS rounds
+     FROM matchzy_stats_maps
+     WHERE matchid IN (${placeholders})
+     GROUP BY matchid`,
+    matchIds
+  );
+  const [mapTotalRows] = await db.query<RowDataPacket[]>(
+    `SELECT matchid, SUM(team1_score) AS team1_score, SUM(team2_score) AS team2_score
      FROM matchzy_stats_maps
      WHERE matchid IN (${placeholders})
      GROUP BY matchid`,
@@ -778,6 +820,7 @@ export async function fetchRecentPlayerMatchSummaries(
   const db = getMatchzyPool();
   const [playerRows] = await db.query<PlayerSummaryRow[]>(
     `SELECT matchid, CAST(steamid64 AS CHAR) AS steamid64,
+            MIN(team) AS team,
             SUM(kills) AS kills,
             SUM(deaths) AS deaths,
             SUM(assists) AS assists,
@@ -795,6 +838,13 @@ export async function fetchRecentPlayerMatchSummaries(
 
   const matchIds = playerRows.map((row) => row.matchid);
   const placeholders = matchIds.map(() => "?").join(",");
+  const [matchRows] = await db.query<LeaderboardMatchRow[]>(
+    `SELECT matchid, start_time, winner, series_type, team1_name, team2_name,
+            team1_score, team2_score
+     FROM matchzy_stats_matches
+     WHERE matchid IN (${placeholders})`,
+    matchIds
+  );
   const [roundRows] = await db.query<MatchRoundsRow[]>(
     `SELECT matchid, SUM(team1_score + team2_score) AS rounds
      FROM matchzy_stats_maps
@@ -802,14 +852,103 @@ export async function fetchRecentPlayerMatchSummaries(
      GROUP BY matchid`,
     matchIds
   );
+  const [mapTotalRowsRecent] = await db.query<RowDataPacket[]>(
+    `SELECT matchid, SUM(team1_score) AS team1_score, SUM(team2_score) AS team2_score
+     FROM matchzy_stats_maps
+     WHERE matchid IN (${placeholders})
+     GROUP BY matchid`,
+    matchIds
+  );
+  const [mapRows] = await db.query<RowDataPacket[]>(
+    `SELECT m1.matchid, m1.mapname, m1.team1_score, m1.team2_score
+     FROM matchzy_stats_maps m1
+     INNER JOIN (
+       SELECT matchid, MIN(mapnumber) AS min_map
+       FROM matchzy_stats_maps
+       WHERE matchid IN (${placeholders})
+       GROUP BY matchid
+     ) mm ON m1.matchid = mm.matchid AND m1.mapnumber = mm.min_map`,
+    matchIds
+  );
 
   const roundsByMatch = new Map<number, number>();
   for (const row of roundRows) {
     roundsByMatch.set(toNumber(row.matchid), toNumber(row.rounds));
   }
+  const matchById = new Map<
+    number,
+    {
+      team1Name: string;
+      team2Name: string;
+      team1Score: number;
+      team2Score: number;
+      winnerSide: "team1" | "team2" | null;
+    }
+  >();
+  const mapTotalsByMatch = new Map<number, { team1Score: number; team2Score: number }>();
+  for (const row of mapTotalRowsRecent) {
+    mapTotalsByMatch.set(toNumber(row.matchid), {
+      team1Score: toNumber(row.team1_score),
+      team2Score: toNumber(row.team2_score),
+    });
+  }
+  for (const row of matchRows) {
+    const matchId = toNumber(row.matchid);
+    const team1Name = row.team1_name ?? "";
+    const team2Name = row.team2_name ?? "";
+    const rawTeam1Score = toNumber(row.team1_score);
+    const rawTeam2Score = toNumber(row.team2_score);
+    const mapTotals = mapTotalsByMatch.get(matchId);
+    const hasMapTotals =
+      mapTotals &&
+      mapTotals.team1Score + mapTotals.team2Score > 0;
+    const resolvedTeam1Score =
+      rawTeam1Score === 0 && rawTeam2Score === 0 && hasMapTotals
+        ? mapTotals!.team1Score
+        : rawTeam1Score;
+    const resolvedTeam2Score =
+      rawTeam1Score === 0 && rawTeam2Score === 0 && hasMapTotals
+        ? mapTotals!.team2Score
+        : rawTeam2Score;
+    const winnerName = getMatchWinner({
+      winner: row.winner ?? "",
+      seriesType: row.series_type ?? "",
+      team1Name,
+      team2Name,
+      team1Score: resolvedTeam1Score,
+      team2Score: resolvedTeam2Score,
+    });
+    const winnerSide = winnerName
+      ? resolveTeamSide(winnerName, team1Name, team2Name)
+      : null;
+
+    matchById.set(matchId, {
+      team1Name,
+      team2Name,
+      team1Score: resolvedTeam1Score,
+      team2Score: resolvedTeam2Score,
+      winnerSide,
+    });
+  }
+  const mapByMatch = new Map<number, { name: string; team1Score: number; team2Score: number }>();
+  for (const row of mapRows) {
+    mapByMatch.set(toNumber(row.matchid), {
+      name: toString(row.mapname),
+      team1Score: toNumber(row.team1_score),
+      team2Score: toNumber(row.team2_score),
+    });
+  }
 
   return playerRows.map((row) => {
     const matchId = toNumber(row.matchid);
+    const match = matchById.get(matchId);
+    const teamSide = match
+      ? resolveTeamSide(row.team ?? "", match.team1Name, match.team2Name)
+      : null;
+    const winnerSide = match?.winnerSide ?? null;
+    const win =
+      teamSide && winnerSide ? winnerSide === teamSide : null;
+    const mapInfo = mapByMatch.get(matchId);
     return {
       matchId,
       steamId64: toString(row.steamid64),
@@ -819,6 +958,16 @@ export async function fetchRecentPlayerMatchSummaries(
       damage: toNumber(row.damage),
       clutchWins: toNumber(row.clutch_wins),
       rounds: roundsByMatch.get(matchId) ?? 0,
+      teamSide,
+      winnerSide,
+      mapName: mapInfo?.name ?? "",
+      mapTeam1Score: mapInfo?.team1Score ?? 0,
+      mapTeam2Score: mapInfo?.team2Score ?? 0,
+      team1Name: match?.team1Name ?? "",
+      team2Name: match?.team2Name ?? "",
+      team1Score: match?.team1Score ?? 0,
+      team2Score: match?.team2Score ?? 0,
+      win,
     };
   });
 }
