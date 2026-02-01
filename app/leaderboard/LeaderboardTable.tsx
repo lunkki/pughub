@@ -7,6 +7,7 @@ export type LeaderboardRow = {
   steamId64: string;
   displayName: string;
   avatarUrl: string | null;
+  faceitLevel: number | null;
   matches: number;
   wins: number;
   losses: number;
@@ -219,6 +220,10 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
               player.rating !== null ? player.rating.toFixed(2) : "-";
             const initial =
               player.displayName.trim().charAt(0).toUpperCase() || "?";
+            const faceitLevel =
+              player.faceitLevel && player.faceitLevel >= 1
+                ? Math.min(player.faceitLevel, 10)
+                : null;
 
             return (
               <tr key={player.steamId64}>
@@ -243,6 +248,14 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
                       <div className="font-medium text-slate-100">
                         {player.displayName}
                       </div>
+                      {faceitLevel && (
+                        <img
+                          src={`/faceit/level-${faceitLevel}.png`}
+                          alt={`Faceit level ${faceitLevel}`}
+                          className="h-5 w-5"
+                          title={`Faceit Level ${faceitLevel}`}
+                        />
+                      )}
                     </Link>
                   </div>
                 </td>

@@ -9,6 +9,7 @@ import {
   hasMatchzyConfig,
 } from "@/lib/matchzy";
 import { getRatingFromTotals } from "@/lib/matchStatsFormat";
+import { getFaceitProfileCache, type FaceitProfileCacheEntry } from "@/lib/faceitProfiles";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -46,6 +47,8 @@ export default async function ProfilePage({
   let matchError: string | null = null;
   let totals: PlayerTotals | null = null;
   let recent: PlayerMatchSummary[] = [];
+  let faceitProfile: FaceitProfileCacheEntry | null = null;
+  let faceitError: string | null = null;
 
   if (!hasConfig) {
     matchError =
@@ -58,6 +61,14 @@ export default async function ProfilePage({
       matchError =
         err instanceof Error ? err.message : "Failed to load match stats.";
     }
+  }
+
+  try {
+    const faceitCache = await getFaceitProfileCache([steamId]);
+    faceitProfile = faceitCache.get(steamId) ?? null;
+  } catch (err) {
+    faceitError =
+      err instanceof Error ? err.message : "Failed to load Faceit data.";
   }
 
   let profileName = steamId;
@@ -87,6 +98,9 @@ export default async function ProfilePage({
         rating: totals.rating,
       }
     : null;
+  const faceitGame = faceitProfile
+    ? { faceit_elo: faceitProfile.elo, skill_level: faceitProfile.level }
+    : null;
 
   return (
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
@@ -109,6 +123,23 @@ export default async function ProfilePage({
             </p>
             <h1 className="mt-1 text-3xl font-semibold">{profileName}</h1>
             <p className="mt-2 text-sm text-slate-300">SteamID: {steamId}</p>
+            {faceitProfile && faceitProfile.nickname && (
+              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                Faceit:{" "}
+                {faceitProfile.faceitUrl ? (
+                  <a
+                    href={faceitProfile.faceitUrl}
+                    className="text-sky-200 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {faceitProfile.nickname}
+                  </a>
+                ) : (
+                  faceitProfile.nickname
+                )}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -130,6 +161,12 @@ export default async function ProfilePage({
             { label: "Rating", value: stats.rating ? stats.rating.toFixed(2) : "-" },
             { label: "Rounds", value: formatNumber(stats.rounds) },
             { label: "Damage", value: formatNumber(stats.damage) },
+            ...(faceitGame
+              ? [
+                  { label: "Faceit Elo", value: formatNumber(faceitGame.faceit_elo ?? 0) },
+                  { label: "Faceit Level", value: String(faceitGame.skill_level ?? "-") },
+                ]
+              : []),
           ].map((item) => (
             <div
               key={item.label}
@@ -143,6 +180,33 @@ export default async function ProfilePage({
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {!stats && faceitGame && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "Faceit Elo", value: formatNumber(faceitGame.faceit_elo ?? 0) },
+            { label: "Faceit Level", value: String(faceitGame.skill_level ?? "-") },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-md shadow-sky-900/10"
+            >
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                {item.label}
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-100">
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {faceitError && (
+        <div className="rounded-2xl border border-amber-900/60 bg-amber-950/30 p-4 text-xs text-amber-100">
+          Faceit: {faceitError}
         </div>
       )}
 

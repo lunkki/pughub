@@ -16,6 +16,7 @@ import { getConnectPassword } from "@/lib/serverControl";
 import { canManageLobbyPlayers, canManageServers, canStartScrim } from "@/lib/permissions";
 import { fetchRecentPlayerMatchSummaries, hasMatchzyConfig } from "@/lib/matchzy";
 import { getRating } from "@/lib/matchStatsFormat";
+import { getFaceitProfileCache } from "@/lib/faceitProfiles";
 
 type RatingMatchSummary = {
   kills: number;
@@ -236,10 +237,36 @@ export default async function ScrimLobbyPage({
     }
   }
 
+  const faceitCache = new Map<string, { elo: number | null; level: number | null }>();
+  try {
+    const faceitSteamIds = Array.from(
+      new Set(
+        updatedScrim.players
+          .filter((player) => player.steamId && !player.isPlaceholder)
+          .map((player) => player.steamId as string)
+      )
+    );
+    if (faceitSteamIds.length > 0) {
+      const cache = await getFaceitProfileCache(faceitSteamIds);
+      for (const [steamId, entry] of cache) {
+        faceitCache.set(steamId, { elo: entry.elo, level: entry.level });
+      }
+    }
+  } catch {
+    // ignore faceit failures to keep the lobby usable
+  }
+
   const averageRatingLabel = (steamId: string) => {
     const average = averageRatings.get(steamId);
     if (average === undefined) return null;
     return average.toFixed(2);
+  };
+
+  const getFaceitLevel = (level: number | null) => {
+    if (!level) return null;
+    if (level < 1) return null;
+    if (level > 10) return "10";
+    return String(level);
   };
 
   const canKickPlayers = isCreator || canManageLobbyPlayersUser;
@@ -252,8 +279,19 @@ export default async function ScrimLobbyPage({
       player.steamId && !isPlaceholder
         ? averageRatingLabel(player.steamId)
         : null;
+    const faceit = player.steamId ? faceitCache.get(player.steamId) : null;
+    const faceitElo = faceit?.elo ?? null;
+    const faceitLevel = faceit?.level ?? null;
     const initial = displayName.trim().charAt(0).toUpperCase() || "?";
-    return { displayName, avatarUrl, isPlaceholder, ratingLabel, initial };
+    return {
+      displayName,
+      avatarUrl,
+      isPlaceholder,
+      ratingLabel,
+      faceitElo,
+      faceitLevel,
+      initial,
+    };
   };
 
   const CrownIcon = () => (
@@ -375,9 +413,17 @@ export default async function ScrimLobbyPage({
               )}
 
               {team1.map((player) => {
-                const { displayName, avatarUrl, isPlaceholder, ratingLabel, initial } =
-                  getPlayerMeta(player);
+                const {
+                  displayName,
+                  avatarUrl,
+                  isPlaceholder,
+                  ratingLabel,
+                  faceitElo,
+                  faceitLevel,
+                  initial,
+                } = getPlayerMeta(player);
                 const isSelf = player.userId === user.id;
+                const faceitLevelLabel = getFaceitLevel(faceitLevel);
                 return (
                   <div
                     key={player.id}
@@ -398,6 +444,22 @@ export default async function ScrimLobbyPage({
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
+                        </span>
+                      )}
+                      {faceitLevelLabel && (
+                        <span
+                          title={
+                            faceitElo !== null
+                              ? `Faceit Elo ${faceitElo}`
+                              : `Faceit Level ${faceitLevelLabel}`
+                          }
+                          className="inline-flex items-center"
+                        >
+                          <img
+                            src={`/faceit/level-${faceitLevelLabel}.png`}
+                            alt={`Faceit level ${faceitLevelLabel}`}
+                            className="h-5 w-5"
+                          />
                         </span>
                       )}
                       {ratingLabel && (
@@ -436,9 +498,17 @@ export default async function ScrimLobbyPage({
               )}
 
               {team2.map((player) => {
-                const { displayName, avatarUrl, isPlaceholder, ratingLabel, initial } =
-                  getPlayerMeta(player);
+                const {
+                  displayName,
+                  avatarUrl,
+                  isPlaceholder,
+                  ratingLabel,
+                  faceitElo,
+                  faceitLevel,
+                  initial,
+                } = getPlayerMeta(player);
                 const isSelf = player.userId === user.id;
+                const faceitLevelLabel = getFaceitLevel(faceitLevel);
                 return (
                   <div
                     key={player.id}
@@ -459,6 +529,22 @@ export default async function ScrimLobbyPage({
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
+                        </span>
+                      )}
+                      {faceitLevelLabel && (
+                        <span
+                          title={
+                            faceitElo !== null
+                              ? `Faceit Elo ${faceitElo}`
+                              : `Faceit Level ${faceitLevelLabel}`
+                          }
+                          className="inline-flex items-center"
+                        >
+                          <img
+                            src={`/faceit/level-${faceitLevelLabel}.png`}
+                            alt={`Faceit level ${faceitLevelLabel}`}
+                            className="h-5 w-5"
+                          />
                         </span>
                       )}
                       {ratingLabel && (
@@ -502,9 +588,17 @@ export default async function ScrimLobbyPage({
             )}
 
             {waiting.map((player) => {
-              const { displayName, avatarUrl, isPlaceholder, ratingLabel, initial } =
-                getPlayerMeta(player);
-              const isSelf = player.userId === user.id;
+                const {
+                  displayName,
+                  avatarUrl,
+                  isPlaceholder,
+                  ratingLabel,
+                  faceitElo,
+                  faceitLevel,
+                  initial,
+                } = getPlayerMeta(player);
+                const isSelf = player.userId === user.id;
+              const faceitLevelLabel = getFaceitLevel(faceitLevel);
               return (
                 <div
                   key={player.id}
@@ -525,6 +619,22 @@ export default async function ScrimLobbyPage({
                     {isPlaceholder && (
                       <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                         Placeholder
+                      </span>
+                    )}
+                    {faceitLevelLabel && (
+                      <span
+                        title={
+                          faceitElo !== null
+                            ? `Faceit Elo ${faceitElo}`
+                            : `Faceit Level ${faceitLevelLabel}`
+                        }
+                        className="inline-flex items-center"
+                      >
+                        <img
+                          src={`/faceit/level-${faceitLevelLabel}.png`}
+                          alt={`Faceit level ${faceitLevelLabel}`}
+                          className="h-5 w-5"
+                        />
                       </span>
                     )}
                     {ratingLabel && (

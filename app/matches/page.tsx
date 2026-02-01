@@ -3,6 +3,7 @@ import { fetchMatchStats, hasMatchzyConfig } from "@/lib/matchzy";
 import type { MatchStats } from "@/lib/matchzy";
 import { getCurrentUser } from "@/lib/auth";
 import { getSteamProfileCache } from "@/lib/steamProfiles";
+import { getFaceitProfileCache } from "@/lib/faceitProfiles";
 import {
   formatDate,
   formatSeriesType,
@@ -44,6 +45,7 @@ export default async function MatchesPage() {
   let matchError: string | null = null;
   let matches: MatchStats[] = [];
   let profileCache = new Map<string, { avatarUrl: string | null }>();
+  let faceitCache = new Map<string, { level: number | null }>();
 
   if (!hasConfig) {
     matchError =
@@ -72,6 +74,22 @@ export default async function MatchesPage() {
       );
     } catch {
       // Ignore profile cache failures and fall back to name-only UI.
+    }
+
+    try {
+      const cache = await getFaceitProfileCache(
+        matches.flatMap((match) =>
+          match.players.map((player) => player.steamId64)
+        )
+      );
+      faceitCache = new Map(
+        Array.from(cache.entries(), ([steamId, entry]) => [
+          steamId,
+          { level: entry.level ?? null },
+        ])
+      );
+    } catch {
+      // Ignore faceit cache failures and fall back to no badge.
     }
   }
 
@@ -223,6 +241,12 @@ export default async function MatchesPage() {
                                     const displayName = player.name || player.steamId64;
                                     const initial =
                                       displayName.trim().charAt(0).toUpperCase() || "?";
+                                    const faceitLevel =
+                                      faceitCache.get(player.steamId64)?.level ?? null;
+                                    const faceitLevelLabel =
+                                      faceitLevel && faceitLevel >= 1
+                                        ? Math.min(faceitLevel, 10)
+                                        : null;
 
                                     return (
                                       <tr key={`${match.matchId}-${team.label}-${player.steamId64}`}>
@@ -245,6 +269,14 @@ export default async function MatchesPage() {
                                             >
                                               {displayName}
                                             </Link>
+                                            {faceitLevelLabel && (
+                                              <img
+                                                src={`/faceit/level-${faceitLevelLabel}.png`}
+                                                alt={`Faceit level ${faceitLevelLabel}`}
+                                                className="h-4 w-4"
+                                                title={`Faceit Level ${faceitLevelLabel}`}
+                                              />
+                                            )}
                                           </div>
                                         </td>
                                         <td className="px-2 py-2 text-slate-200">{player.kills}</td>

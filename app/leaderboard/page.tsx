@@ -3,6 +3,7 @@ import { fetchPlayerLeaderboard, hasMatchzyConfig } from "@/lib/matchzy";
 import type { PlayerLeaderboardEntry } from "@/lib/matchzy";
 import { getCurrentUser } from "@/lib/auth";
 import { getSteamProfileCache } from "@/lib/steamProfiles";
+import { getFaceitProfileCache } from "@/lib/faceitProfiles";
 import { LeaderboardTable, type LeaderboardRow } from "./LeaderboardTable";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export default async function LeaderboardPage() {
     string,
     { displayName: string; avatarUrl: string | null }
   >();
+  let faceitCache = new Map<string, { level: number | null }>();
 
   if (!hasConfig) {
     error =
@@ -63,16 +65,32 @@ export default async function LeaderboardPage() {
       // Ignore profile cache failures and fall back to MatchZy names.
     }
 
+    try {
+      const cache = await getFaceitProfileCache(
+        leaderboard.map((player) => player.steamId64)
+      );
+      faceitCache = new Map(
+        Array.from(cache.entries(), ([steamId, entry]) => [
+          steamId,
+          { level: entry.level ?? null },
+        ])
+      );
+    } catch {
+      // Ignore faceit cache failures and fall back to no badge.
+    }
+
     rows = leaderboard.map((player) => {
       const profile = profileCache.get(player.steamId64);
       const displayName =
         profile?.displayName?.trim() ||
         player.name?.trim() ||
         "Unknown player";
+      const faceit = faceitCache.get(player.steamId64);
       return {
         steamId64: player.steamId64,
         displayName,
         avatarUrl: profile?.avatarUrl ?? null,
+        faceitLevel: faceit?.level ?? null,
         matches: player.matches,
         wins: player.wins,
         losses: player.losses,
