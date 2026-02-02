@@ -340,6 +340,16 @@ export default async function ProfilePage({
     .slice(0, 10)
     .reverse()
     .map((match) => match.win ?? null);
+  const trendHighest =
+    trendValues.length > 0 ? Math.max(...trendValues) : null;
+  const trendLowest =
+    trendValues.length > 0 ? Math.min(...trendValues) : null;
+  const winCount = trendResults.filter((result) => result === true).length;
+  const lossCount = trendResults.filter((result) => result === false).length;
+  const winRatio =
+    winCount + lossCount > 0
+      ? Math.round((winCount / (winCount + lossCount)) * 100)
+      : null;
   const last5Ratings = ratingSeries.slice(0, 5).map((r) => r.rating);
   const prev5Ratings = ratingSeries.slice(5, 10).map((r) => r.rating);
   const avg = (values: number[]) =>
@@ -537,14 +547,49 @@ export default async function ProfilePage({
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
               Recent performance
             </p>
-            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="space-y-3">
                 <div className="text-sm text-slate-300">
                   Rating trend (last 10)
                 </div>
+                <div className="text-slate-300">
+                  <RatingTrend values={trendValues} results={trendResults} />
+                </div>
               </div>
-              <div className="text-slate-300">
-                <RatingTrend values={trendValues} results={trendResults} />
+              <div className="w-full max-w-[220px] rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-200">
+                <div className="flex items-center justify-between gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    W
+                    <span className="text-emerald-300">{winCount}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-rose-400" />
+                    L
+                    <span className="text-rose-300">{lossCount}</span>
+                  </span>
+                  {winRatio !== null && (
+                    <span className="ml-auto text-slate-300">
+                      {winRatio}%
+                    </span>
+                  )}
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Highest</span>
+                    <span className="font-semibold text-emerald-200">
+                      {trendHighest !== null
+                        ? trendHighest.toFixed(2)
+                        : "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Lowest</span>
+                    <span className="font-semibold text-rose-200">
+                      {trendLowest !== null ? trendLowest.toFixed(2) : "-"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
