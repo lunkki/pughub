@@ -263,7 +263,7 @@ export function MapVetoClient({
               )}
               {showVoteBadge && (
                 <div className="ph-animate-in absolute top-2 right-2 rounded bg-amber-500/90 px-2 py-1 text-[11px] font-semibold text-amber-50 shadow">
-                  Pick ({mySelections.length}/{voteLimit})
+                  Ban ({mySelections.length}/{voteLimit})
                 </div>
               )}
               {!showVoteBadge && canBan && (
