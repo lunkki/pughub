@@ -4,7 +4,7 @@ export type MapInfo = {
   image: string;
   type: "stock" | "workshop";
   command: string;
-  workshopId ? : string;
+  workshopId?: string;
 };
 
 // Base URL for images
