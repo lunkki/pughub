@@ -281,7 +281,7 @@ export const MAPS: MapInfo[] = [
     workshopId: "3072451578",
     command: "host_workshop_map 3072451578",
   },
-  {
+    {
     id: "de_prodigy_ported",
     name: "Prodigy",
     image: `${IMG}/de_prodigy_ported.jpg`,
@@ -350,15 +350,17 @@ export const MAPS: MapInfo[] = [
 
 
 // ACTIVE DUTY LIST (full objects)
-export const ACTIVE_DUTY = MAPS.filter((m) => [
-  "de_mirage",
-  "de_inferno",
-  "de_nuke",
-  "de_overpass",
-  "de_ancient",
-  "de_dust2",
-  "de_train",
-].includes(m.id));
+export const ACTIVE_DUTY = MAPS.filter((m) =>
+  [
+    "de_mirage",
+    "de_inferno",
+    "de_nuke",
+    "de_overpass",
+    "de_ancient",
+    "de_dust2",
+    "de_train",
+  ].includes(m.id)
+);
 
 // ALL MAPS (full objects)
 export const ALL_MAPS = MAPS;
@@ -368,5 +370,5 @@ export function getMapById(id: string): MapInfo | undefined {
 }
 
 export function getMapCommand(id: string): string {
-  return getMapById(id) ? .command ? ? `changelevel ${id}`;
+  return getMapById(id)?.command ?? `changelevel ${id}`;
 }
