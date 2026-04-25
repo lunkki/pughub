@@ -25,7 +25,7 @@ const EMPTY_STATE: VetoState = {
   turn: null,
 };
 
-export const VETO_TURN_SECONDS = 30;
+export const VETO_TURN_SECONDS = 15;
 
 export function parseVetoState(raw: string | null): VetoState {
   if (!raw) {
