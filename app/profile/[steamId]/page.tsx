@@ -10,7 +10,7 @@ import {
   hasMatchzyConfig,
 } from "@/lib/matchzy";
 import { getRatingFromTotals } from "@/lib/matchStatsFormat";
-import { getFaceitProfileCache, type FaceitProfileCacheEntry } from "@/lib/faceitProfiles";
+import { getFaceitProfileCache, normalizeFaceitUrl, type FaceitProfileCacheEntry } from "@/lib/faceitProfiles";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -412,10 +412,7 @@ export default async function ProfilePage({
     ? { faceit_elo: faceitProfile.elo, skill_level: faceitProfile.level }
     : null;
   const faceitUrl =
-    faceitProfile?.faceitUrl?.replace(
-      /\/(%7B|{)lang(%7D|})\//i,
-      "/fi/"
-    ) ?? null;
+    normalizeFaceitUrl(faceitProfile?.faceitUrl ?? null);
   const faceitLevelLabel =
     faceitProfile?.level && faceitProfile.level >= 1
       ? String(Math.min(10, faceitProfile.level))

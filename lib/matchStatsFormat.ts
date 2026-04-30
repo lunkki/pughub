@@ -1,13 +1,37 @@
 import type { MatchStats } from "./matchzy";
 
+const HELSINKI_TIME_ZONE = "Europe/Helsinki";
+
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeStyle: "short",
+  timeZone: HELSINKI_TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const timeZoneFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: HELSINKI_TIME_ZONE,
+  timeZoneName: "short",
 });
 
 export function formatDate(value: Date | null) {
   if (!value) return "TBD";
-  return dateFormatter.format(value);
+
+  const parts = dateFormatter.formatToParts(value);
+  const day = parts.find((part) => part.type === "day")?.value ?? "00";
+  const month = parts.find((part) => part.type === "month")?.value ?? "00";
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "00";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+  const timeZone =
+    timeZoneFormatter
+      .formatToParts(value)
+      .find((part) => part.type === "timeZoneName")?.value ?? "Europe/Helsinki";
+
+  return `${day}.${month}.${year} ${hour}:${minute} [${timeZone}]`;
 }
 
 export function formatDuration(start: Date | null, end: Date | null) {

@@ -12,6 +12,7 @@ import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
 import { PlaceholderPlayerForm } from "./PlaceholderPlayerForm";
 import { CopyConnectButton } from "./CopyConnectButton";
+import { PlayerPreviewButton } from "./PlayerPreviewButton";
 import { parseVetoState, TeamSide } from "@/lib/veto";
 import { getConnectPassword } from "@/lib/serverControl";
 import { canManageLobbyPlayers, canManageServers, canStartScrim } from "@/lib/permissions";
@@ -25,6 +26,46 @@ type RatingMatchSummary = {
   assists: number;
   damage: number;
   clutchWins: number;
+};
+
+type LobbyPlayer = {
+  id: string;
+  scrimId: string;
+  userId: string | null;
+  steamId: string | null;
+  team: "TEAM1" | "TEAM2" | "WAITING_ROOM";
+  isCaptain: boolean;
+  joinedAt: Date;
+  isPlaceholder: boolean;
+  displayName: string | null;
+  user: {
+    id: string;
+    steamId: string;
+    displayName: string;
+    avatarUrl: string | null;
+  } | null;
+};
+
+type LobbyScrim = {
+  id: string;
+  code: string;
+  creatorId: string;
+  status: "LOBBY" | "MAP_VETO" | "READY_TO_PLAY" | "FINISHED" | "CANCELLED";
+  teamMode: "SHUFFLE" | "CAPTAINS";
+  maxPlayers: number;
+  mapPool: string | null;
+  selectedMap: string | null;
+  vetoMode: "CAPTAINS" | "PLAYERS";
+  vetoState: string | null;
+  pickPhase: "CAPTAIN_FREEPICK" | "PHASED_PICK" | "SCRAMBLE" | "RANDOM";
+  pickPhaseStarted: boolean;
+  serverId: string;
+  server: {
+    address: string | null;
+    name?: string;
+    isActive?: boolean;
+  } | null;
+  players: LobbyPlayer[];
 };
 
 function buildRatingPlayer(steamId64: string, match: RatingMatchSummary) {
@@ -98,13 +139,13 @@ export default async function ScrimLobbyPage({
   }
 
   // 2. Load scrim
-  const scrim = await prisma.scrim.findUnique({
+  const scrim = (await prisma.scrim.findUnique({
     where: { code },
     include: {
       players: { include: { user: true } },
       server: true,
     },
-  });
+  })) as LobbyScrim | null;
 
   if (!scrim) {
     return <div className="p-10 text-slate-50">Scrim not found.</div>;
@@ -135,13 +176,13 @@ export default async function ScrimLobbyPage({
   }
 
   // 4. Reload scrim with updated players
-  const updatedScrim = await prisma.scrim.findUnique({
+  const updatedScrim = (await prisma.scrim.findUnique({
     where: { code },
     include: {
       players: { include: { user: true } },
       server: true,
     },
-  });
+  })) as LobbyScrim | null;
 
   if (!updatedScrim) redirect("/");
 
@@ -314,18 +355,20 @@ export default async function ScrimLobbyPage({
     const displayName =
       player.user?.displayName || player.displayName || "Unknown player";
     const avatarUrl = player.user?.avatarUrl ?? "";
+    const steamId = player.steamId ?? null;
     const isPlaceholder = player.isPlaceholder || !player.userId;
     const ratingLabel =
-      player.steamId && !isPlaceholder
-        ? averageRatingLabel(player.steamId)
+      steamId && !isPlaceholder
+        ? averageRatingLabel(steamId)
         : null;
-    const faceit = player.steamId ? faceitCache.get(player.steamId) : null;
+    const faceit = steamId ? faceitCache.get(steamId) : null;
     const faceitElo = faceit?.elo ?? null;
     const faceitLevel = faceit?.level ?? null;
     const initial = displayName.trim().charAt(0).toUpperCase() || "?";
     return {
       displayName,
       avatarUrl,
+      steamId,
       isPlaceholder,
       ratingLabel,
       faceitElo,
@@ -333,35 +376,6 @@ export default async function ScrimLobbyPage({
       initial,
     };
   };
-
-  const CrownIcon = () => (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      viewBox="0 0 20 20"
-      className="h-4 w-4"
-    >
-      <path
-        fill="currentColor"
-        d="M3 15.5h14l-1.2-7.5-3.4 2.7-2.4-5.2-2.4 5.2-3.4-2.7L3 15.5Zm0 1.5a.5.5 0 0 0 0 1h14a.5.5 0 0 0 0-1H3Z"
-      />
-    </svg>
-  );
-
-  const renderName = (name: string, isCaptain: boolean) => (
-    <span
-      className={`inline-flex items-center gap-1 ${
-        isCaptain ? "text-amber-200 font-semibold" : ""
-      }`}
-    >
-      {isCaptain && (
-        <span className="inline-flex items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/10 p-1 text-amber-300">
-          <CrownIcon />
-        </span>
-      )}
-      <span>{name}</span>
-    </span>
-  );
 
   return (
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
@@ -461,6 +475,7 @@ export default async function ScrimLobbyPage({
                 const {
                   displayName,
                   avatarUrl,
+                  steamId,
                   isPlaceholder,
                   ratingLabel,
                   faceitElo,
@@ -485,7 +500,11 @@ export default async function ScrimLobbyPage({
                           {initial}
                         </div>
                       )}
-                      {renderName(displayName, player.isCaptain)}
+                      <PlayerPreviewButton
+                        steamId={steamId}
+                        name={displayName}
+                        isCaptain={player.isCaptain}
+                      />
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
@@ -546,6 +565,7 @@ export default async function ScrimLobbyPage({
                 const {
                   displayName,
                   avatarUrl,
+                  steamId,
                   isPlaceholder,
                   ratingLabel,
                   faceitElo,
@@ -570,7 +590,11 @@ export default async function ScrimLobbyPage({
                           {initial}
                         </div>
                       )}
-                      {renderName(displayName, player.isCaptain)}
+                      <PlayerPreviewButton
+                        steamId={steamId}
+                        name={displayName}
+                        isCaptain={player.isCaptain}
+                      />
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
@@ -658,6 +682,7 @@ export default async function ScrimLobbyPage({
                 const {
                   displayName,
                   avatarUrl,
+                  steamId,
                   isPlaceholder,
                   ratingLabel,
                   faceitElo,
@@ -682,7 +707,11 @@ export default async function ScrimLobbyPage({
                         {initial}
                       </div>
                     )}
-                    {renderName(displayName, player.isCaptain)}
+                    <PlayerPreviewButton
+                      steamId={steamId}
+                      name={displayName}
+                      isCaptain={player.isCaptain}
+                    />
                     {isPlaceholder && (
                       <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                         Placeholder

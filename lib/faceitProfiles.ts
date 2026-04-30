@@ -13,6 +13,11 @@ export type FaceitProfileCacheEntry = {
   updatedAt: Date;
 };
 
+export function normalizeFaceitUrl(faceitUrl: string | null) {
+  if (!faceitUrl) return null;
+  return faceitUrl.replace(/\/(%7B|{)lang(%7D|})\//i, "/fi/");
+}
+
 function getGameStats(player: NonNullable<Awaited<ReturnType<typeof fetchFaceitPlayerBySteamId>>>) {
   const game = player.games?.cs2 ?? player.games?.csgo ?? null;
   return {
@@ -41,7 +46,7 @@ export async function getFaceitProfileCache(
       nickname: row.nickname ?? null,
       elo: row.elo ?? null,
       level: row.level ?? null,
-      faceitUrl: row.faceitUrl ?? null,
+      faceitUrl: normalizeFaceitUrl(row.faceitUrl ?? null),
       updatedAt: row.updatedAt,
     });
   }
@@ -99,14 +104,14 @@ export async function getFaceitProfileCache(
         nickname: entry.player.nickname ?? null,
         elo: stats.elo,
         level: stats.level,
-        faceitUrl: entry.player.faceit_url ?? null,
+        faceitUrl: normalizeFaceitUrl(entry.player.faceit_url ?? null),
       },
       create: {
         steamId: entry.steamId,
         nickname: entry.player.nickname ?? null,
         elo: stats.elo,
         level: stats.level,
-        faceitUrl: entry.player.faceit_url ?? null,
+        faceitUrl: normalizeFaceitUrl(entry.player.faceit_url ?? null),
       },
     });
   });
@@ -136,7 +141,7 @@ export async function getFaceitProfileCache(
       nickname: player.nickname ?? null,
       elo: stats.elo,
       level: stats.level,
-      faceitUrl: player.faceit_url ?? null,
+      faceitUrl: normalizeFaceitUrl(player.faceit_url ?? null),
       updatedAt: refreshedAt,
     });
   }
