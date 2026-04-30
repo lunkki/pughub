@@ -23,8 +23,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const data: Record<string, any> = {};
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const data: {
+    name?: string;
+    address?: string;
+    rconPassword?: string;
+    isActive?: boolean;
+    rconAddress?: string;
+  } = {};
 
   if (typeof body.name === "string") data.name = body.name.trim();
   if (typeof body.address === "string") data.address = body.address.trim();

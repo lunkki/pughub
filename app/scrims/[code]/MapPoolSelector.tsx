@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { MAPS, ACTIVE_DUTY, type MapInfo } from "@/lib/maps";
 import { Button } from "@/app/components/ui/Button";
 
@@ -15,24 +14,10 @@ export function MapPoolSelector({
   canEdit: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [pool, setPool] = useState<string[]>(initialMapPool ?? []);
-  const poolRef = useRef<string[]>(initialMapPool ?? []);
+  const [draftPool, setDraftPool] = useState<string[]>(initialMapPool ?? []);
+  const draftRef = useRef<string[]>(initialMapPool ?? []);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeDutySet = useMemo(() => new Set(ACTIVE_DUTY.map((m) => m.id)), []);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    // Keep local state in sync with server updates (router.refresh preserves client state)
-    // Don't clobber edits while the editor dropdown is open.
-    if (canEdit && open) return;
-    const next = initialMapPool ?? [];
-    poolRef.current = next;
-    setPool(next);
-  }, [initialMapPool, canEdit, open]);
 
   // Save to server
   async function savePool(updated: string[]) {
@@ -50,11 +35,11 @@ export function MapPoolSelector({
   // Toggle membership
   function toggleMap(id: string) {
     if (!canEdit) return;
-    setPool((prev) => {
+    setDraftPool((prev) => {
       const next = prev.includes(id)
         ? prev.filter((m) => m !== id)
         : [...prev, id];
-      poolRef.current = next;
+      draftRef.current = next;
       return next;
     });
   }
@@ -63,28 +48,35 @@ export function MapPoolSelector({
   function selectAll() {
     if (!canEdit) return;
     const next = MAPS.map((m) => m.id);
-    poolRef.current = next;
-    setPool(next);
+    draftRef.current = next;
+    setDraftPool(next);
   }
 
   function selectActiveDuty() {
     if (!canEdit) return;
     const next = ACTIVE_DUTY.map((m) => m.id);
-    poolRef.current = next;
-    setPool(next);
+    draftRef.current = next;
+    setDraftPool(next);
   }
 
   function clearAll() {
     if (!canEdit) return;
-    poolRef.current = [];
-    setPool([]);
+    draftRef.current = [];
+    setDraftPool([]);
+  }
+
+  function openDropdown() {
+    const next = initialMapPool ?? [];
+    draftRef.current = next;
+    setDraftPool(next);
+    setOpen(true);
   }
 
   // Close (and save if editable)
   function closeDropdown() {
     setOpen(false);
     if (canEdit) {
-      savePool(poolRef.current);
+      savePool(draftRef.current);
     }
   }
 
@@ -99,7 +91,7 @@ export function MapPoolSelector({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const selectedCount = pool.length;
+  const selectedCount = (open ? draftPool : initialMapPool ?? []).length;
 
   const sections = useMemo(() => {
     const isHostage = (m: MapInfo) => m.id.startsWith("cs_");
@@ -152,7 +144,7 @@ export function MapPoolSelector({
             if (open) {
               closeDropdown();
             } else {
-              setOpen(true);
+              openDropdown();
             }
           }}
           variant="outline"
@@ -162,22 +154,19 @@ export function MapPoolSelector({
         </Button>
       </div>
 
-      {mounted && open
-        ? createPortal(
-            <MapPoolModal
-              canEdit={canEdit}
-              onClose={closeDropdown}
-              onSelectActiveDuty={selectActiveDuty}
-              onSelectAll={selectAll}
-              onClearAll={clearAll}
-              onDone={closeDropdown}
-              sections={sections}
-              pool={pool}
-              onToggleMap={toggleMap}
-            />,
-            document.body
-          )
-        : null}
+      {open ? (
+        <MapPoolModal
+          canEdit={canEdit}
+          onClose={closeDropdown}
+          onSelectActiveDuty={selectActiveDuty}
+          onSelectAll={selectAll}
+          onClearAll={clearAll}
+          onDone={closeDropdown}
+          sections={sections}
+          pool={draftPool}
+          onToggleMap={toggleMap}
+        />
+      ) : null}
     </div>
   );
 }

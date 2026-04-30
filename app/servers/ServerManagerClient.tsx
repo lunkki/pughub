@@ -62,8 +62,8 @@ export function ServerManagerClient({ initialServers }: Props) {
         rconPassword: "",
         isActive: true,
       });
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to create server");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create server");
     } finally {
       setCreating(false);
     }
@@ -85,8 +85,8 @@ export function ServerManagerClient({ initialServers }: Props) {
       setServers((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...data.server } : s))
       );
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to update server");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update server");
     }
   }
 
@@ -102,8 +102,8 @@ export function ServerManagerClient({ initialServers }: Props) {
         return;
       }
       setServers((prev) => prev.filter((s) => s.id !== id));
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to delete server");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete server");
     }
   }
 
@@ -129,8 +129,8 @@ export function ServerManagerClient({ initialServers }: Props) {
       } else {
         setRconResult("Sent");
       }
-    } catch (err: any) {
-      setRconResult(err?.message ?? "RCON failed");
+    } catch (err: unknown) {
+      setRconResult(err instanceof Error ? err.message : "RCON failed");
     } finally {
       setRconBusy(false);
     }

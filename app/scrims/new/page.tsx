@@ -27,8 +27,8 @@ export default function ScrimNewPage() {
       }
 
       setError(data.error ?? "Failed to create scrim");
-    } catch (e: any) {
-      setError(e?.message ?? "Network error");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setLoading(false);
     }

@@ -53,10 +53,11 @@ export function RoleManagerClient({
           [userId]: data.error ?? "Failed to update role",
         }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error";
       setErrors((prev) => ({
         ...prev,
-        [userId]: err?.message ?? "Network error",
+        [userId]: message,
       }));
     } finally {
       setSaving((prev) => ({ ...prev, [userId]: false }));

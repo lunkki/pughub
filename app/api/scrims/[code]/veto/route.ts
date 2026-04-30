@@ -265,7 +265,7 @@ export async function POST(
   const body = await req.json();
   const { action, map } = body as { action: "BAN"; map: string };
 
-  let state: VetoState | null = scrim.vetoState
+  const state: VetoState | null = scrim.vetoState
     ? JSON.parse(scrim.vetoState)
     : null;
 
@@ -306,9 +306,6 @@ export async function POST(
       );
     }
     const stateNonNull: VetoState = state;
-    const teamPlayers = scrim.players.filter(
-      (p) => p.team === myTeam && !p.isPlaceholder && p.userId
-    );
     const currentTurn = stateNonNull.banned.length;
     const voteLimit = getVetoVoteLimit(stateNonNull);
 
@@ -341,7 +338,8 @@ export async function POST(
       selections[user.id] = Array.from(userSelections);
     }
 
-    const voterIds = teamPlayers
+    const voterIds = scrim.players
+      .filter((p) => p.team === myTeam && p.userId)
       .map((p) => p.userId)
       .filter((id): id is string => Boolean(id));
     const activeVoters = voterIds.length > 0 ? voterIds : [user.id];

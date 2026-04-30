@@ -3,9 +3,12 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageRoles } from "@/lib/permissions";
 
-const allowedRoles = new Set(["PLAYER", "MANAGER", "ADMIN"] as const);
-
 type AllowedRole = "PLAYER" | "MANAGER" | "ADMIN";
+const allowedRoles = new Set<AllowedRole>([
+  "PLAYER",
+  "MANAGER",
+  "ADMIN",
+]);
 
 export async function PATCH(req: NextRequest) {
   const user = await getCurrentUser();
@@ -14,7 +17,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const userId = typeof body.userId === "string" ? body.userId : "";
   const role = typeof body.role === "string" ? body.role : "";
 
@@ -32,14 +35,15 @@ export async function PATCH(req: NextRequest) {
   try {
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: { role: role as AllowedRole },
+      data: { role: role as never },
       select: { id: true, role: true },
     });
 
     return NextResponse.json({ user: updated });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to update role";
     return NextResponse.json(
-      { error: err?.message ?? "Failed to update role" },
+      { error: message },
       { status: 500 }
     );
   }

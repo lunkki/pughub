@@ -11,12 +11,14 @@ const FALLBACK_REFRESH_MS = 15_000;
 export function SseListener({ code }: { code: string }) {
   const router = useRouter();
   const retries = useRef(0);
-  const lastEventAt = useRef(Date.now());
+  const lastEventAt = useRef(0);
 
   useEffect(() => {
     let es: EventSource | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
     let staleInterval: ReturnType<typeof setInterval> | null = null;
+
+    lastEventAt.current = Date.now();
 
     const connect = () => {
       es?.close();

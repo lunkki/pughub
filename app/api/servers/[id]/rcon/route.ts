@@ -42,10 +42,11 @@ export async function POST(
       command,
     });
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : undefined;
     console.error("RCON exec failed", err);
     return NextResponse.json(
-      { error: "RCON command failed", detail: err?.message },
+      { error: "RCON command failed", detail },
       { status: 500 }
     );
   }

@@ -54,8 +54,8 @@ export function ScrimControls({
 
       // Simple: refresh once when veto starts so everything is in sync
       window.location.reload();
-    } catch (e: any) {
-      setError(e?.message ?? "Network error");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setLoading(false);
     }
@@ -63,11 +63,6 @@ export function ScrimControls({
 
   let primaryLabel = "Start match";
   let primaryDisabled = true;
-  const finalConnectString =
-    serverAddress && connectPassword
-      ? `connect ${serverAddress}; password ${connectPassword}`
-      : null;
-
   if (vetoState.phase === "NOT_STARTED") {
     if (mapPoolLength < 1) {
       primaryLabel = "Need at least 1 map selected";
