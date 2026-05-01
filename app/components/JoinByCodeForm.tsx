@@ -1,19 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "./ui/Button";
 import { cn } from "@/lib/utils";
 
 export function JoinByCodeForm({ className }: { className?: string }) {
-  const router = useRouter();
   const [code, setCode] = useState("");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
-    router.push(`/scrims/${trimmed}`);
+    window.location.assign(`/scrims/${trimmed}`);
   }
 
   return (

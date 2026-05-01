@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { MAPS } from "@/lib/maps";
 import { getVetoVoteLimit, type TeamSide, type VetoState } from "@/lib/veto";
 
@@ -29,7 +28,6 @@ export function MapVetoClient({
   currentUserId,
   players = [],
 }: Props) {
-  const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -111,7 +109,7 @@ export function MapVetoClient({
         const data = await res.json().catch(() => ({}));
         alert(data.error ?? "Failed to ban map");
       } else {
-        router.refresh();
+        window.location.reload();
       }
     } finally {
       setBusy(false);

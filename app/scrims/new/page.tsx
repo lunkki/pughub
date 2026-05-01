@@ -1,12 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/Button";
 
 export default function ScrimNewPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +20,7 @@ export default function ScrimNewPage() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok && data.code) {
-        router.push(`/scrims/${data.code}`);
+        window.location.assign(`/scrims/${data.code}`);
         return;
       }
 

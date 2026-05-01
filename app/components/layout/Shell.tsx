@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Button } from "../ui/Button";
+import { ForceDocumentNavigation } from "./ForceDocumentNavigation";
 import { LoginButton } from "./LoginButton";
 import { canManageRoles, canManageServers, canStartScrim } from "@/lib/permissions";
 
@@ -84,6 +85,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
+
+      <ForceDocumentNavigation />
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 px-4 py-6">
         {children}

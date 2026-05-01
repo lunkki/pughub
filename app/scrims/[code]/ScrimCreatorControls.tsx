@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type ScrimCreatorControlsProps = {
   scrim: {
@@ -28,7 +27,6 @@ export function ScrimCreatorControls({
   canManageServers,
   embedded = false,
 }: ScrimCreatorControlsProps) {
-  const router = useRouter();
   const [mode, setMode] = useState(scrim.vetoMode);
   const [pickPhase, setPickPhase] = useState(scrim.pickPhase);
   const [serverId, setServerId] = useState(scrim.serverId);
@@ -47,7 +45,7 @@ export function ScrimCreatorControls({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vetoMode: newMode }),
     });
-    router.refresh();
+    window.location.reload();
   }
 
   async function changePickPhase(newPhase: string) {
@@ -59,7 +57,7 @@ export function ScrimCreatorControls({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pickPhase: newPhase }),
     });
-    router.refresh();
+    window.location.reload();
   }
 
   async function changeServer(newServerId: string) {
@@ -78,7 +76,7 @@ export function ScrimCreatorControls({
       return;
     }
 
-    router.refresh();
+    window.location.reload();
   }
 
   return (
@@ -170,7 +168,7 @@ export function ScrimCreatorControls({
                   method: "POST",
                 });
                 setPickPhaseStarted(true);
-                router.refresh();
+                window.location.reload();
               }}
               disabled={locked || pickPhaseStarted}
               className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-emerald-400/60 hover:text-emerald-200 disabled:opacity-50"
@@ -198,7 +196,7 @@ export function ScrimCreatorControls({
                     body: JSON.stringify({ mode: "SCRAMBLE" }),
                   });
                   setTeamBusy(null);
-                  router.refresh();
+                  window.location.reload();
                 }}
                 disabled={locked || teamBusy !== null}
                 className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-sky-400/60 hover:text-sky-200 disabled:opacity-50"
@@ -218,7 +216,7 @@ export function ScrimCreatorControls({
                     body: JSON.stringify({ mode: "RANDOM" }),
                   });
                   setTeamBusy(null);
-                  router.refresh();
+                  window.location.reload();
                 }}
                 disabled={locked || teamBusy !== null}
                 className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-sky-400/60 hover:text-sky-200 disabled:opacity-50"

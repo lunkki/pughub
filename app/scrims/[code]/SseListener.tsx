@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 const RECONNECT_BASE_MS = 500;
 const RECONNECT_MAX_MS = 8000;
@@ -9,7 +8,6 @@ const STALE_AFTER_MS = 30_000;
 const FALLBACK_REFRESH_MS = 15_000;
 
 export function SseListener({ code }: { code: string }) {
-  const router = useRouter();
   const retries = useRef(0);
   const lastEventAt = useRef(0);
 
@@ -40,7 +38,7 @@ export function SseListener({ code }: { code: string }) {
       es.addEventListener("update", () => {
         resetBackoff();
         touch();
-        router.refresh();
+        window.location.reload();
       });
 
       es.addEventListener("ping", () => {
@@ -74,7 +72,7 @@ export function SseListener({ code }: { code: string }) {
       if (staleFor < STALE_AFTER_MS) return;
       es?.close();
       connect();
-      router.refresh();
+      window.location.reload();
       lastEventAt.current = Date.now();
     }, FALLBACK_REFRESH_MS);
 
@@ -87,7 +85,7 @@ export function SseListener({ code }: { code: string }) {
         clearInterval(staleInterval);
       }
     };
-  }, [code, router]);
+  }, [code]);
 
   return null;
 }
