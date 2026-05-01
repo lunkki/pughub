@@ -72,6 +72,8 @@ model Scrim {
   vetoState    String?       
   pickPhase   PickPhase @default(CAPTAIN_FREEPICK)
   pickPhaseStarted Boolean @default(false)
+  readyCheckStartedAt DateTime?
+  readyCheckEndsAt    DateTime?
 
 
 }
@@ -91,6 +93,7 @@ model ScrimPlayer {
 
   isCaptain  Boolean  @default(false)
   joinedAt   DateTime @default(now())
+  readyCheckStatus ReadyCheckStatus?
 
   @@unique([scrimId, userId])
 }
@@ -139,4 +142,9 @@ enum PickPhase {
   PHASED_PICK
   SCRAMBLE
   RANDOM
+}
+
+enum ReadyCheckStatus {
+  READY
+  NOT_READY
 }

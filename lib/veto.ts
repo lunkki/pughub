@@ -1,6 +1,7 @@
 // lib/veto.ts
 
 export type TeamSide = "TEAM1" | "TEAM2";
+export type ReadyCheckStatus = "READY" | "NOT_READY";
 
 export type VetoPhase = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
 

@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SseListener } from "./SseListener";
 import { VetoStartSound } from "./VetoStartSound";
+import { ReadyCheckPanel } from "./ReadyCheckPanel";
 import { ScrimCreatorControls } from "./ScrimCreatorControls";
 import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
@@ -39,6 +40,7 @@ type LobbyPlayer = {
   joinedAt: Date;
   isPlaceholder: boolean;
   displayName: string | null;
+  readyCheckStatus: "READY" | "NOT_READY" | null;
   user: {
     id: string;
     steamId: string;
@@ -60,6 +62,8 @@ type LobbyScrim = {
   vetoState: string | null;
   pickPhase: "CAPTAIN_FREEPICK" | "PHASED_PICK" | "SCRAMBLE" | "RANDOM";
   pickPhaseStarted: boolean;
+  readyCheckStartedAt: Date | null;
+  readyCheckEndsAt: Date | null;
   serverId: string;
   server: {
     address: string | null;
@@ -201,6 +205,13 @@ export default async function ScrimLobbyPage({
     (p) => p.userId === user.id
   );
   const currentUserTeam = playerForUser?.team ?? null;
+  const readyCheckActive =
+    updatedScrim.status === "LOBBY" &&
+    updatedScrim.readyCheckStartedAt !== null &&
+    updatedScrim.readyCheckEndsAt !== null;
+  const hasNotReadyPlayers = updatedScrim.players.some(
+    (player) => player.readyCheckStatus === "NOT_READY"
+  );
 
   // mapPool as string[]
   const mapPool: string[] = updatedScrim.mapPool
@@ -371,6 +382,7 @@ export default async function ScrimLobbyPage({
       avatarUrl,
       steamId,
       isPlaceholder,
+      readyCheckStatus: player.readyCheckStatus ?? null,
       ratingLabel,
       faceitElo,
       faceitLevel,
@@ -433,6 +445,28 @@ export default async function ScrimLobbyPage({
               embedded
             />
 
+            <div className="mt-5 border-t border-slate-800 pt-5">
+              <ReadyCheckPanel
+                scrimCode={updatedScrim.code}
+                isCreator={isCreator}
+                canStartScrim={canStartScrimUser}
+                readyCheckActive={readyCheckActive}
+                readyCheckStartedAt={
+                  updatedScrim.readyCheckStartedAt
+                    ? updatedScrim.readyCheckStartedAt.toISOString()
+                    : null
+                }
+                readyCheckEndsAt={
+                  updatedScrim.readyCheckEndsAt
+                    ? updatedScrim.readyCheckEndsAt.toISOString()
+                    : null
+                }
+                hasNotReadyPlayers={hasNotReadyPlayers}
+                canRespond={Boolean(playerForUser)}
+                myReadyCheckStatus={playerForUser?.readyCheckStatus ?? null}
+              />
+            </div>
+
             {isCreator && (
               <div className="mt-5 border-t border-slate-800 pt-5">
                 <ScrimCreatorControls
@@ -479,6 +513,7 @@ export default async function ScrimLobbyPage({
                   avatarUrl,
                   steamId,
                   isPlaceholder,
+                  readyCheckStatus,
                   ratingLabel,
                   faceitElo,
                   faceitLevel,
@@ -486,6 +521,25 @@ export default async function ScrimLobbyPage({
                 } = getPlayerMeta(player);
                 const isSelf = player.userId === user.id;
                 const faceitLevelLabel = getFaceitLevel(faceitLevel);
+                const readyCheckBadge = readyCheckActive
+                  ? readyCheckStatus === "READY"
+                    ? {
+                        label: "Ready",
+                        className:
+                          "border-emerald-500/50 bg-emerald-500/10 text-emerald-200",
+                      }
+                    : readyCheckStatus === "NOT_READY"
+                      ? {
+                          label: "Not ready",
+                          className:
+                            "border-rose-500/50 bg-rose-500/10 text-rose-200",
+                        }
+                      : {
+                          label: "Pending",
+                          className:
+                            "border-slate-700 bg-slate-900/60 text-slate-300",
+                        }
+                  : null;
                 return (
                   <div
                     key={player.id}
@@ -507,6 +561,13 @@ export default async function ScrimLobbyPage({
                         name={displayName}
                         isCaptain={player.isCaptain}
                       />
+                      {readyCheckBadge && (
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${readyCheckBadge.className}`}
+                        >
+                          {readyCheckBadge.label}
+                        </span>
+                      )}
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
@@ -569,6 +630,7 @@ export default async function ScrimLobbyPage({
                   avatarUrl,
                   steamId,
                   isPlaceholder,
+                  readyCheckStatus,
                   ratingLabel,
                   faceitElo,
                   faceitLevel,
@@ -576,6 +638,25 @@ export default async function ScrimLobbyPage({
                 } = getPlayerMeta(player);
                 const isSelf = player.userId === user.id;
                 const faceitLevelLabel = getFaceitLevel(faceitLevel);
+                const readyCheckBadge = readyCheckActive
+                  ? readyCheckStatus === "READY"
+                    ? {
+                        label: "Ready",
+                        className:
+                          "border-emerald-500/50 bg-emerald-500/10 text-emerald-200",
+                      }
+                    : readyCheckStatus === "NOT_READY"
+                      ? {
+                          label: "Not ready",
+                          className:
+                            "border-rose-500/50 bg-rose-500/10 text-rose-200",
+                        }
+                      : {
+                          label: "Pending",
+                          className:
+                            "border-slate-700 bg-slate-900/60 text-slate-300",
+                        }
+                  : null;
                 return (
                   <div
                     key={player.id}
@@ -597,6 +678,13 @@ export default async function ScrimLobbyPage({
                         name={displayName}
                         isCaptain={player.isCaptain}
                       />
+                      {readyCheckBadge && (
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${readyCheckBadge.className}`}
+                        >
+                          {readyCheckBadge.label}
+                        </span>
+                      )}
                       {isPlaceholder && (
                         <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                           Placeholder
@@ -686,6 +774,7 @@ export default async function ScrimLobbyPage({
                   avatarUrl,
                   steamId,
                   isPlaceholder,
+                  readyCheckStatus,
                   ratingLabel,
                   faceitElo,
                   faceitLevel,
@@ -693,6 +782,25 @@ export default async function ScrimLobbyPage({
                 } = getPlayerMeta(player);
                 const isSelf = player.userId === user.id;
               const faceitLevelLabel = getFaceitLevel(faceitLevel);
+              const readyCheckBadge = readyCheckActive
+                ? readyCheckStatus === "READY"
+                  ? {
+                      label: "Ready",
+                      className:
+                        "border-emerald-500/50 bg-emerald-500/10 text-emerald-200",
+                    }
+                  : readyCheckStatus === "NOT_READY"
+                    ? {
+                        label: "Not ready",
+                        className:
+                          "border-rose-500/50 bg-rose-500/10 text-rose-200",
+                      }
+                    : {
+                        label: "Pending",
+                        className:
+                          "border-slate-700 bg-slate-900/60 text-slate-300",
+                      }
+                : null;
               return (
                 <div
                   key={player.id}
@@ -714,6 +822,13 @@ export default async function ScrimLobbyPage({
                       name={displayName}
                       isCaptain={player.isCaptain}
                     />
+                    {readyCheckBadge && (
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${readyCheckBadge.className}`}
+                      >
+                        {readyCheckBadge.label}
+                      </span>
+                    )}
                     {isPlaceholder && (
                       <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                         Placeholder

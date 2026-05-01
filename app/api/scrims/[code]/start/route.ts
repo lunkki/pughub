@@ -70,6 +70,8 @@ export async function POST(
         data: {
           status: "READY_TO_PLAY",
           selectedMap: finalMap,
+          readyCheckStartedAt: null,
+          readyCheckEndsAt: null,
           vetoState: JSON.stringify({
             phase: "DONE",
             pool,
@@ -110,6 +112,8 @@ export async function POST(
         data: {
           status: "READY_TO_PLAY",
           selectedMap: finalMap,
+          readyCheckStartedAt: null,
+          readyCheckEndsAt: null,
           vetoState: JSON.stringify({
             phase: "DONE",
             pool,
@@ -157,6 +161,8 @@ export async function POST(
     where: { id: scrim.id },
     data: {
       status: "MAP_VETO",
+      readyCheckStartedAt: null,
+      readyCheckEndsAt: null,
       vetoState: JSON.stringify(initialState),
     },
   });
