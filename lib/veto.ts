@@ -9,6 +9,7 @@ export type VetoState = {
   pool: string[];
   banned: { map: string; by: TeamSide | "RANDOM" }[];
   turn: TeamSide | null;
+  startedAt?: string;
   deadline?: string;
   finalMap?: string;
   pendingVotes?: {
@@ -58,6 +59,7 @@ export function parseVetoState(raw: string | null): VetoState {
       pool: parsed.pool ?? [],
       banned: parsed.banned ?? [],
       turn: parsed.turn ?? null,
+      ...(parsed.startedAt ? { startedAt: parsed.startedAt } : {}),
       ...(parsed.deadline ? { deadline: parsed.deadline } : {}),
       ...(parsed.finalMap ? { finalMap: parsed.finalMap } : {}),
       ...(pendingVotes ? { pendingVotes } : {}),

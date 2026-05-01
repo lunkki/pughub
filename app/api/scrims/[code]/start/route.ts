@@ -149,6 +149,7 @@ export async function POST(
     pool,
     banned: [],
     turn: getNextTeamABBA(0),
+    startedAt: new Date().toISOString(),
     deadline,
   };
 

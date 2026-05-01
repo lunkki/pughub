@@ -7,6 +7,7 @@ import { TeamMoveButton } from "./TeamMoveButton";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SseListener } from "./SseListener";
+import { VetoStartSound } from "./VetoStartSound";
 import { ScrimCreatorControls } from "./ScrimCreatorControls";
 import { MapVetoClient } from "./MapVetoClient";
 import { ScrimControls } from "./ScrimControls";
@@ -380,6 +381,7 @@ export default async function ScrimLobbyPage({
   return (
     <div className="w-full space-y-6 p-6 text-slate-50 md:p-8">
       <SseListener code={updatedScrim.code} />
+      <VetoStartSound scrimCode={updatedScrim.code} vetoState={vetoState} />
 
       {/* HERO */}
       <div className="overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-[#0f1b2d] p-6 shadow-xl shadow-sky-900/30">
