@@ -86,6 +86,8 @@ export function ReadyCheckPanel({
     void expireReadyCheck();
   }, [isExpired, readyCheckActive, scrimCode]);
 
+  if (!readyCheckActive && !isCreator) return null;
+
   async function startReadyCheck() {
     if (!isCreator || !canStartScrim || busy) return;
 
@@ -156,11 +158,7 @@ export function ReadyCheckPanel({
                   ? `Restart ready check (${READY_CHECK_DURATION_SECONDS}s)`
                   : `Start ready check (${READY_CHECK_DURATION_SECONDS}s)`}
             </Button>
-          ) : (
-            <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1 text-xs font-semibold text-slate-300">
-              Waiting for the creator to start ready check
-            </span>
-          )
+          ) : null
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <span

@@ -432,42 +432,42 @@ export default async function ScrimLobbyPage({
       {/* JOIN + MANAGEMENT */}
       <div className="grid gap-6 lg:grid-cols-[1.2fr,1fr]">
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
-            <ScrimControls
-              scrimCode={updatedScrim.code}
-              isCreator={isCreator}
-              canStartScrim={canStartScrimUser}
-              vetoState={vetoState}
-              mapPoolLength={mapPool.length}
-              selectedMap={updatedScrim.selectedMap}
-              serverAddress={serverAddress || undefined}
-              connectPassword={connectPassword}
-              embedded
-            />
-
-            <div className="mt-5 border-t border-slate-800 pt-5">
-              <ReadyCheckPanel
+          {isCreator && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-md shadow-sky-900/10">
+              <ScrimControls
                 scrimCode={updatedScrim.code}
                 isCreator={isCreator}
                 canStartScrim={canStartScrimUser}
-                readyCheckActive={readyCheckActive}
-                readyCheckStartedAt={
-                  updatedScrim.readyCheckStartedAt
-                    ? updatedScrim.readyCheckStartedAt.toISOString()
-                    : null
-                }
-                readyCheckEndsAt={
-                  updatedScrim.readyCheckEndsAt
-                    ? updatedScrim.readyCheckEndsAt.toISOString()
-                    : null
-                }
-                hasNotReadyPlayers={hasNotReadyPlayers}
-                canRespond={Boolean(playerForUser)}
-                myReadyCheckStatus={playerForUser?.readyCheckStatus ?? null}
+                vetoState={vetoState}
+                mapPoolLength={mapPool.length}
+                selectedMap={updatedScrim.selectedMap}
+                serverAddress={serverAddress || undefined}
+                connectPassword={connectPassword}
+                embedded
               />
-            </div>
 
-            {isCreator && (
+              <div className="mt-5 border-t border-slate-800 pt-5">
+                <ReadyCheckPanel
+                  scrimCode={updatedScrim.code}
+                  isCreator={isCreator}
+                  canStartScrim={canStartScrimUser}
+                  readyCheckActive={readyCheckActive}
+                  readyCheckStartedAt={
+                    updatedScrim.readyCheckStartedAt
+                      ? updatedScrim.readyCheckStartedAt.toISOString()
+                      : null
+                  }
+                  readyCheckEndsAt={
+                    updatedScrim.readyCheckEndsAt
+                      ? updatedScrim.readyCheckEndsAt.toISOString()
+                      : null
+                  }
+                  hasNotReadyPlayers={hasNotReadyPlayers}
+                  canRespond={Boolean(playerForUser)}
+                  myReadyCheckStatus={playerForUser?.readyCheckStatus ?? null}
+                />
+              </div>
+
               <div className="mt-5 border-t border-slate-800 pt-5">
                 <ScrimCreatorControls
                   scrim={{
@@ -483,8 +483,30 @@ export default async function ScrimLobbyPage({
                   embedded
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {!isCreator && (
+            <ReadyCheckPanel
+              scrimCode={updatedScrim.code}
+              isCreator={isCreator}
+              canStartScrim={canStartScrimUser}
+              readyCheckActive={readyCheckActive}
+              readyCheckStartedAt={
+                updatedScrim.readyCheckStartedAt
+                  ? updatedScrim.readyCheckStartedAt.toISOString()
+                  : null
+              }
+              readyCheckEndsAt={
+                updatedScrim.readyCheckEndsAt
+                  ? updatedScrim.readyCheckEndsAt.toISOString()
+                  : null
+              }
+              hasNotReadyPlayers={hasNotReadyPlayers}
+              canRespond={Boolean(playerForUser)}
+              myReadyCheckStatus={playerForUser?.readyCheckStatus ?? null}
+            />
+          )}
         </div>
 
         <div className="space-y-4">
